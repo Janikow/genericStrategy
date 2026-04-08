@@ -1,0 +1,947 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,Arial),sans-serif;font-size:13px;color:var(--color-text-primary);background:transparent}
+h2{font-size:13px;font-weight:500;margin:0 0 4px}
+button{font-family:inherit;font-size:12px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);cursor:pointer;padding:3px 9px;border-radius:var(--border-radius-md);color:var(--color-text-primary)}
+button:hover:not(:disabled){background:var(--color-background-secondary)}
+button:disabled{color:var(--color-text-tertiary);cursor:default;border-color:var(--color-border-tertiary)}
+button:active:not(:disabled){transform:scale(0.98)}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);border-radius:var(--border-radius-lg) var(--border-radius-lg) 0 0}
+.topbar h1{font-size:15px;font-weight:500}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:var(--border-radius-md);font-weight:500}
+.badge-wave{background:#E6F1FB;color:#185FA5}
+.badge-info{background:#E1F5EE;color:#0F6E56}
+.badge-warn{background:#FAEEDA;color:#854F0B}
+.badge-danger{background:#FCEBEB;color:#A32D2D}
+.layout{display:grid;grid-template-columns:1.2fr 1fr 0.85fr;gap:8px;padding:8px}
+.col{display:flex;flex-direction:column;gap:8px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:8px 10px}
+.card-title{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.arena-row{display:flex;align-items:center;gap:6px;margin:4px 0}
+.aname{font-size:12px;font-weight:500;width:100px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hpbar-wrap{flex:1;display:flex;align-items:center;gap:5px}
+.hpbar{flex:1;height:8px;border-radius:4px;background:var(--color-background-secondary);overflow:hidden;border:0.5px solid var(--color-border-tertiary)}
+.hpfill{height:100%;border-radius:4px;transition:width 0.3s}
+.hp-high{background:#1D9E75}
+.hp-mid{background:#BA7517}
+.hp-low{background:#E24B4A}
+.hpnums{font-size:10px;color:var(--color-text-secondary);width:60px;text-align:right;font-family:var(--font-mono)}
+.buffs{font-size:10px;color:var(--color-text-info);margin-top:1px;min-height:12px}
+.status-pill{display:inline-block;font-size:9px;padding:1px 5px;border-radius:var(--border-radius-md);margin-right:2px;font-weight:500}
+.sp-atk{background:#FAEEDA;color:#854F0B}
+.sp-def{background:#E6F1FB;color:#185FA5}
+.sp-spd{background:#EAF3DE;color:#3B6D11}
+.sp-burn{background:#FCEBEB;color:#A32D2D}
+.sp-stun{background:#EEEDFE;color:#534AB7}
+.sp-regen{background:#E1F5EE;color:#0F6E56}
+.sp-crit{background:#F5C4B3;color:#993C1D}
+#msgbox{font-size:12px;font-family:var(--font-mono);padding:7px 9px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);min-height:44px;line-height:1.6;color:var(--color-text-primary)}
+.cursor{display:inline-block;width:6px;height:11px;background:var(--color-text-primary);vertical-align:middle;margin-left:2px;animation:blink 0.9s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.moves-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.mbtn{text-align:left;padding:5px 7px;width:100%;border-radius:var(--border-radius-md)}
+.mbtn-name{font-size:12px;font-weight:500;display:block}
+.mbtn-sub{font-size:10px;color:var(--color-text-secondary);display:block;margin-top:1px}
+.mbtn-pp{font-size:10px;font-family:var(--font-mono);color:var(--color-text-tertiary)}
+.stattbl{width:100%;border-collapse:collapse;font-size:11px}
+.stattbl td{padding:2px 0}
+.stattbl .k{color:var(--color-text-secondary);padding-right:8px;width:55%}
+.stattbl .v{font-weight:500;font-family:var(--font-mono)}
+#logbox{height:120px;overflow-y:auto;font-family:var(--font-mono);font-size:10px;line-height:1.7;color:var(--color-text-secondary)}
+.le{display:block}
+.le.sys{color:var(--color-text-primary);font-weight:500}
+.le.hit{color:#1D9E75}
+.le.crit{color:#D85A30;font-weight:500}
+.le.ai{color:#E24B4A}
+.le.miss{color:var(--color-text-tertiary)}
+.le.proj{color:#185FA5}
+.le.debuff{color:#534AB7}
+.turn-banner{font-size:11px;color:var(--color-text-secondary);font-style:italic}
+.meter-wrap{display:flex;align-items:center;gap:6px;margin:3px 0}
+.meter-label{font-size:10px;color:var(--color-text-secondary);width:38px;flex-shrink:0}
+.meter-bar{flex:1;height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;border:0.5px solid var(--color-border-tertiary)}
+.meter-fill{height:100%;border-radius:3px;background:#185FA5;transition:width 0.4s}
+.exp-fill{background:#639922}
+#resultbox{display:none;border:1.5px solid var(--color-border-primary);border-radius:var(--border-radius-lg);padding:14px;text-align:center;margin:8px}
+#resultbox.show{display:block}
+#result-title{font-size:22px;font-weight:500;display:block;margin-bottom:8px}
+#result-detail{font-size:11px;font-family:var(--font-mono);color:var(--color-text-secondary);white-space:pre;line-height:1.8;margin-bottom:10px}
+.upgrade-card{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:7px 9px;margin-bottom:5px}
+.upgrade-card .utitle{font-size:12px;font-weight:500;margin-bottom:2px}
+.upgrade-card .udesc{font-size:10px;color:var(--color-text-secondary);margin-bottom:5px;line-height:1.5}
+.upgrade-card .urarity{font-size:10px;margin-bottom:4px}
+.rarity-common{color:#888780}
+.rarity-rare{color:#185FA5}
+.rarity-epic{color:#534AB7}
+.choose-banner{padding:5px 0 3px;font-size:12px;font-weight:500;color:var(--color-text-primary);border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:6px}
+.wave-badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:var(--border-radius-md);background:#FAEEDA;color:#854F0B;display:inline-block;margin-right:6px}
+.dpop{position:fixed;pointer-events:none;font-family:var(--font-mono);font-size:13px;font-weight:500;animation:dpop 1.1s ease-out forwards;z-index:9999}
+@keyframes dpop{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-28px)}}
+.wave-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.diff-meter{display:flex;align-items:center;gap:3px}
+.diff-pip{width:8px;height:8px;border-radius:2px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary)}
+.diff-pip.on{background:#E24B4A;border-color:#A32D2D}
+.prob-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:4px}
+.prob-table td,.prob-table th{padding:2px 5px;border:0.5px solid var(--color-border-tertiary)}
+.prob-table th{background:var(--color-background-secondary);font-weight:500;font-size:10px}
+</style>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <h1>Combat Simulation</h1>
+    <span class="badge badge-wave" id="wave-badge">Wave 1</span>
+    <span class="badge badge-info" id="diff-badge">Novice</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;font-size:12px">
+    <span class="turn-banner" id="turn-line">Turn 1 — your move</span>
+    <span>Score <b id="score-top" style="font-family:var(--font-mono)">0</b></span>
+    <span>Wave Score <b id="wscore-top" style="font-family:var(--font-mono)">0</b></span>
+  </div>
+</div>
+
+<div id="resultbox">
+  <span id="result-title"></span>
+  <div id="result-detail"></div>
+  <div id="upgrade-pick" style="display:none">
+    <div class="choose-banner">— choose an upgrade —</div>
+    <div id="upgrade-choices" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"></div>
+  </div>
+  <button id="next-btn" onclick="nextWave()" style="display:none;margin-top:8px"><b>Continue to next wave</b></button>
+  <button onclick="initGame()" style="margin-top:8px"><b>New Game</b></button>
+</div>
+
+<div class="layout" id="main-layout">
+  <div class="col">
+    <div class="card">
+      <div class="card-title">Unit Status</div>
+      <div class="wave-header">
+        <span id="wave-lbl" style="font-size:11px;color:var(--color-text-secondary)">Round 1</span>
+        <div class="diff-meter" id="diff-meter"></div>
+      </div>
+      <div class="arena-row">
+        <div class="aname" id="player-name-el">Unit Alpha</div>
+        <div class="hpbar-wrap">
+          <div class="hpbar"><div class="hpfill hp-high" id="player-fill" style="width:100%"></div></div>
+          <div class="hpnums" id="player-nums">120/120</div>
+        </div>
+      </div>
+      <div class="buffs" id="player-buffs"></div>
+      <div style="border-top:0.5px solid var(--color-border-tertiary);margin:5px 0"></div>
+      <div class="arena-row">
+        <div class="aname" id="ai-name-el">Unit Beta</div>
+        <div class="hpbar-wrap">
+          <div class="hpbar"><div class="hpfill hp-high" id="ai-fill" style="width:100%"></div></div>
+          <div class="hpnums" id="ai-nums">120/120</div>
+        </div>
+      </div>
+      <div class="buffs" id="ai-buffs"></div>
+    </div>
+
+    <div id="msgbox"><span id="msgtxt">Initializing...</span><span class="cursor" id="cursor"></span></div>
+
+    <div class="card">
+      <div class="card-title">Select Move</div>
+      <div class="moves-grid" id="moves-grid"></div>
+    </div>
+
+    <div class="card" style="display:flex;gap:10px">
+      <button onclick="useItem('heal')" id="item-heal" style="flex:1;font-size:11px" disabled>⚕ Medpack (0)</button>
+      <button onclick="useItem('ether')" id="item-ether" style="flex:1;font-size:11px" disabled>⚡ Ether (0)</button>
+      <button onclick="useItem('boost')" id="item-boost" style="flex:1;font-size:11px" disabled>↑ Stim (0)</button>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <div class="card-title">Player Stats</div>
+      <table class="stattbl">
+        <tr><td class="k">ATK</td><td class="v" id="s-atk">—</td></tr>
+        <tr><td class="k">DEF</td><td class="v" id="s-def">—</td></tr>
+        <tr><td class="k">SPD</td><td class="v" id="s-spd">—</td></tr>
+        <tr><td class="k">Crit%</td><td class="v" id="s-crit">—</td></tr>
+        <tr><td class="k">Evade%</td><td class="v" id="s-evade">—</td></tr>
+      </table>
+      <div style="border-top:0.5px solid var(--color-border-tertiary);margin:5px 0"></div>
+      <table class="stattbl">
+        <tr><td class="k">Opponent ATK</td><td class="v" id="s-aiatk">—</td></tr>
+        <tr><td class="k">Opponent DEF</td><td class="v" id="s-aidef">—</td></tr>
+        <tr><td class="k">Opponent SPD</td><td class="v" id="s-aispd">—</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Probability Model</div>
+      <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:4px">Expected dmg per move (vs current opponent)</div>
+      <table class="prob-table" id="prob-table"></table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Resources</div>
+      <div class="meter-wrap">
+        <div class="meter-label">EXP</div>
+        <div class="meter-bar"><div class="meter-fill exp-fill" id="exp-bar" style="width:0%"></div></div>
+        <span style="font-size:10px;color:var(--color-text-secondary)" id="exp-lbl">0/100</span>
+      </div>
+      <div class="meter-wrap">
+        <div class="meter-label">Score</div>
+        <div class="meter-bar"><div class="meter-fill" id="score-bar" style="width:0%"></div></div>
+        <span style="font-size:10px;color:var(--color-text-secondary)" id="score-lbl">0</span>
+      </div>
+      <div style="margin-top:4px">
+        <table class="stattbl">
+          <tr><td class="k">Wave</td><td class="v" id="r-wave">1</td></tr>
+          <tr><td class="k">Turn</td><td class="v" id="r-turn">1</td></tr>
+          <tr><td class="k">Level</td><td class="v" id="r-level">1</td></tr>
+          <tr><td class="k">Items</td><td class="v" id="r-items">—</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <div class="card-title">Battle Log</div>
+      <div id="logbox"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Passive Traits</div>
+      <div id="trait-list" style="font-size:11px;color:var(--color-text-secondary)">None yet</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Wave Info</div>
+      <div id="wave-info" style="font-size:11px;color:var(--color-text-secondary);line-height:1.7"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+
+const BASE_PMOVES=[
+  {id:'quick',name:'Quick Strike',dmg:[18,26],acc:95,pp:15,maxPp:15,desc:'PWR 22 | ACC 95',fx:null,tier:0},
+  {id:'heavy',name:'Heavy Blow',dmg:[28,38],acc:75,pp:10,maxPp:10,desc:'PWR 33 | ACC 75',fx:null,tier:0},
+  {id:'fortify',name:'Fortify',dmg:[0,0],acc:100,pp:8,maxPp:8,desc:'ATK+DEF | Status',fx:'optimize',tier:0},
+  {id:'barrage',name:'Rapid Barrage',dmg:[10,16],acc:90,pp:12,maxPp:12,desc:'PWR 13 x2-3 | Multi',fx:'multihit',tier:0},
+  {id:'blast',name:'Overcharge',dmg:[40,55],acc:65,pp:6,maxPp:6,desc:'PWR 48 | ACC 65 | Tier 1',fx:null,tier:1},
+  {id:'drain',name:'Life Drain',dmg:[14,20],acc:88,pp:10,maxPp:10,desc:'PWR 17 | Heal 50% | Tier 1',fx:'drain',tier:1},
+  {id:'pierce',name:'Armor Pierce',dmg:[22,30],acc:90,pp:10,maxPp:10,desc:'PWR 26 | Ignore DEF | Tier 1',fx:'pierce',tier:1},
+  {id:'burn',name:'Incinerator',dmg:[15,22],acc:85,pp:10,maxPp:10,desc:'PWR 18 | Burn DoT | Tier 1',fx:'burn',tier:1},
+  {id:'snipe',name:'Sniper Shot',dmg:[35,50],acc:80,pp:8,maxPp:8,desc:'PWR 42 | Crit+30% | Tier 2',fx:'highcrit',tier:2},
+  {id:'chain',name:'Chain Attack',dmg:[18,26],acc:92,pp:10,maxPp:10,desc:'PWR 22 | +10 each use | Tier 2',fx:'chain',tier:2},
+  {id:'stun',name:'Shock Pulse',dmg:[20,28],acc:85,pp:8,maxPp:8,desc:'PWR 24 | 40% Stun | Tier 2',fx:'stun',tier:2},
+  {id:'regen',name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Regen 3 turns | Tier 2',fx:'regen',tier:2},
+  {id:'nuke',name:'Annihilate',dmg:[60,85],acc:55,pp:4,maxPp:4,desc:'PWR 72 | ACC 55 | Tier 3',fx:null,tier:3},
+  {id:'reflect',name:'Nullify',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'Negate next attack | Tier 3',fx:'reflect',tier:3},
+];
+
+const ENEMY_POOLS=[
+  {name:'Unit Beta',   hp:120,atk:11,def:9, spd:8, special:null,reward:120},
+  {name:'Unit Gamma',  hp:145,atk:13,def:11,spd:9, special:'drain',reward:200},
+  {name:'Unit Delta',  hp:160,atk:16,def:12,spd:11,special:'burn',reward:280},
+  {name:'Unit Epsilon',hp:180,atk:18,def:14,spd:12,special:'highcrit',reward:370},
+  {name:'Apex Omega',  hp:220,atk:22,def:16,spd:14,special:'reflect',reward:500},
+  {name:'Nemesis Core',hp:270,atk:26,def:18,spd:16,special:'stun',reward:700},
+  {name:'Void Titan',  hp:340,atk:32,def:22,spd:18,special:'multihit',reward:1000},
+  {name:'Singularity', hp:420,atk:40,def:26,spd:20,special:'pierce',reward:1400},
+];
+
+const ALL_UPGRADES=[
+  {id:'u_atk1',name:'Targeting Module',desc:'ATK permanently +3',rarity:'common',apply:G=>{G.player.bAtk+=3},check:()=>true},
+  {id:'u_def1',name:'Armor Plating',desc:'DEF permanently +3',rarity:'common',apply:G=>{G.player.bDef+=3},check:()=>true},
+  {id:'u_spd1',name:'Speed Boosters',desc:'SPD +2, first move bonus if SPD advantage',rarity:'common',apply:G=>{G.player.spd+=2},check:()=>true},
+  {id:'u_crit1',name:'Precision Core',desc:'Crit chance +8%',rarity:'common',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+8},check:()=>true},
+  {id:'u_evade1',name:'Evasion Matrix',desc:'Dodge chance +7%',rarity:'common',apply:G=>{G.player.evadeBonus=(G.player.evadeBonus||0)+7},check:()=>true},
+  {id:'u_hp1',name:'Reinforced Frame',desc:'Max HP +35',rarity:'common',apply:G=>{G.player.maxHp+=35;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp)},check:()=>true},
+  {id:'u_medpacks',name:'Medpacks x2',desc:'Gain 2 Medpack items (restore 35 HP)',rarity:'common',apply:G=>{G.items.heal+=2},check:()=>true},
+  {id:'u_ethers',name:'Ethers x2',desc:'Gain 2 Ether items (restore all PP)',rarity:'common',apply:G=>{G.items.ether+=2},check:()=>true},
+  {id:'u_stims',name:'Stims x2',desc:'Gain 2 Stim items (ATK+DEF for 3 turns)',rarity:'common',apply:G=>{G.items.boost+=2},check:()=>true},
+  {id:'u_atk2',name:'Overclock Module',desc:'ATK permanently +6',rarity:'rare',apply:G=>{G.player.bAtk+=6},check:()=>true},
+  {id:'u_def2',name:'Reactive Shielding',desc:'DEF permanently +5, reflect 20% dmg',rarity:'rare',apply:G=>{G.player.bDef+=5;G.player.reflect20=true},check:()=>true},
+  {id:'u_vamp',name:'Vampiric Rounds',desc:'All attacks restore 15% of damage dealt as HP',rarity:'rare',apply:G=>{G.player.vamp=true},check:()=>true},
+  {id:'u_doublepp',name:'Extended Reserves',desc:'All move PP doubled',rarity:'rare',apply:G=>{G.player.moves.forEach(m=>{m.maxPp*=2;m.pp=m.maxPp})},check:()=>true},
+  {id:'u_crit2',name:'Lethal Configuration',desc:'Crit chance +15%, crit damage x2.0 (from x1.5)',rarity:'rare',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+15;G.player.critMult=2.0},check:()=>true},
+  {id:'u_berserker',name:'Berserker Protocol',desc:'Below 30% HP: ATK doubles',rarity:'rare',apply:G=>{G.player.berserk=true},check:()=>true},
+  {id:'u_allstats',name:'Hyper Calibration',desc:'ATK, DEF, SPD all +4',rarity:'epic',apply:G=>{G.player.bAtk+=4;G.player.bDef+=4;G.player.spd+=4},check:()=>true},
+  {id:'u_phoenix',name:'Phoenix Protocol',desc:'Once per battle: survive fatal blow at 1 HP',rarity:'epic',apply:G=>{G.player.phoenix=true},check:G=>!G.player.phoenix},
+  {id:'u_omni',name:'Omni-Matrix',desc:'Crit +10%, Evade +10%, Vamp 10%, Reflect 15%',rarity:'epic',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+10;G.player.evadeBonus=(G.player.evadeBonus||0)+10;G.player.vamp=true;G.player.reflect10=true},check:()=>true},
+  {id:'u_executer',name:'Execution Protocol',desc:'Attacks on enemies <25% HP deal +60% damage',rarity:'epic',apply:G=>{G.player.execute=true},check:()=>true},
+];
+
+const TRAITS=[
+  {id:'t_tough',name:'Unyielding',desc:'+5 DEF passively'},
+  {id:'t_swift',name:'Overclocked',desc:'Always moves first if SPD is tied or higher'},
+  {id:'t_tactician',name:'Tactician',desc:'Earn +50% score per battle'},
+  {id:'t_ironwill',name:'Iron Will',desc:'Cannot be stunned'},
+];
+
+let G={};
+
+function initGame(){
+  G={
+    wave:1,turn:1,phase:'player',busy:false,
+    score:0,waveScore:0,level:1,exp:0,expNext:100,
+    items:{heal:1,ether:0,boost:0},
+    traits:[],
+    chainCount:0,
+    player:{
+      name:'Unit Alpha',maxHp:120,hp:120,
+      bAtk:10,bDef:10,spd:9,
+      atkBuf:0,defBuf:0,spdBuf:0,
+      critBonus:0,evadeBonus:0,critMult:1.5,
+      vamp:false,reflect20:false,reflect10:false,berserk:false,phoenix:false,phoenixUsed:false,execute:false,
+      moves: ['quick','heavy','fortify','barrage'].map(id=>getMoveById(id)),
+      status:{burn:0,stun:0,regen:0,reflect:0,stimTurns:0},
+    },
+    ai:buildEnemy(0),
+    appliedUpgrades:[],
+    pendingUpgrades:[],
+  };
+  document.getElementById('resultbox').classList.remove('show');
+  document.getElementById('main-layout').style.display='';
+  clearLog();
+  renderAll();
+  setMsg('What will Unit Alpha do?',true);
+  setMovesEnabled(true);
+  renderTraits();
+  updateWaveInfo();
+  updateProbTable();
+}
+
+function getMoveById(id){
+  const m=BASE_PMOVES.find(x=>x.id===id);
+  return m?{...m,pp:m.maxPp}:null;
+}
+
+function buildEnemy(waveIdx){
+  const pool=ENEMY_POOLS;
+  const idx=clamp(waveIdx,0,pool.length-1);
+  const e=pool[idx];
+  const scale=1+waveIdx*0.08;
+  const ai={
+    name:e.name,
+    maxHp:Math.round(e.hp*scale),hp:Math.round(e.hp*scale),
+    bAtk:Math.round(e.atk*scale),bDef:Math.round(e.def*scale),spd:e.spd,
+    atkBuf:0,defBuf:0,
+    status:{burn:0,stun:0,regen:0,reflect:0},
+    special:e.special,
+    reward:e.reward,
+    moves:buildAIMoves(waveIdx),
+  };
+  return ai;
+}
+
+function buildAIMoves(waveIdx){
+  const tier=Math.floor(waveIdx/2);
+  const pool=[
+    {name:'Power Slam',dmg:[22,30],acc:90,pp:12,maxPp:12,fx:null},
+    {name:'Steady Jab', dmg:[14,20],acc:100,pp:12,maxPp:12,fx:null},
+    {name:'Life Drain', dmg:[10,15],acc:85,pp:10,maxPp:10,fx:'drain'},
+    {name:'All-In',     dmg:[40,58],acc:58,pp:5, maxPp:5, fx:null},
+  ];
+  if(tier>=1) pool.push({name:'Burn Strike',dmg:[16,24],acc:85,pp:10,maxPp:10,fx:'burn'});
+  if(tier>=2) pool.push({name:'Shock Blast',dmg:[22,30],acc:80,pp:8, maxPp:8, fx:'stun'},{name:'Shred',dmg:[20,28],acc:90,pp:10,maxPp:10,fx:'pierce'});
+  if(tier>=3) pool.push({name:'Devastate',  dmg:[50,70],acc:60,pp:4, maxPp:4, fx:null},{name:'Leech Pulse',dmg:[20,30],acc:85,pp:8,maxPp:8,fx:'drain'});
+  if(tier>=4) pool.push({name:'Oblivion',   dmg:[70,95],acc:55,pp:3, maxPp:3, fx:null},{name:'Phase Lock', dmg:[28,36],acc:85,pp:6,maxPp:6,fx:'stun'});
+  return pool.slice(0,4).map(m=>({...m,pp:m.maxPp}));
+}
+
+const getAtk=c=>{
+  let a=Math.max(1,Math.round(c.bAtk*(1+c.atkBuf*0.25)));
+  if(G.player===c&&c.berserk&&c.hp/c.maxHp<0.3) a*=2;
+  if(G.player===c&&c.status&&c.status.stimTurns>0) a=Math.round(a*1.4);
+  return a;
+};
+const getDef=c=>Math.max(1,Math.round(c.bDef*(1+c.defBuf*0.25)));
+const getCrit=c=>(10+(c.critBonus||0));
+const getEvade=c=>(5+(c.evadeBonus||0));
+
+function calcDmg(att,def,mv,ignDef){
+  if(!mv.dmg||mv.dmg[0]===0) return{dmg:0,crit:false};
+  const base=rnd(mv.dmg[0],mv.dmg[1]);
+  const atkVal=getAtk(att);
+  const defVal=ignDef?1:getDef(def);
+  const ratio=atkVal/defVal;
+  let dmg=Math.max(1,Math.round(base*ratio));
+  const critChance=clamp(getCrit(att),5,80);
+  const crit=Math.random()*100<critChance;
+  if(crit) dmg=Math.round(dmg*(att.critMult||1.5));
+  if(att.execute&&def.hp/def.maxHp<0.25) dmg=Math.round(dmg*1.6);
+  return{dmg,crit};
+}
+
+function expectedDmg(att,def,mv){
+  if(!mv.dmg||mv.dmg[0]===0) return 0;
+  const avgBase=(mv.dmg[0]+mv.dmg[1])/2;
+  const atkVal=getAtk(att), defVal=(mv.fx==='pierce'?1:getDef(def));
+  const ratio=atkVal/defVal;
+  const critChance=clamp(getCrit(att),5,80)/100;
+  const mult=(att.critMult||1.5);
+  const avgDmg=Math.round(avgBase*ratio*(1-critChance+critChance*mult));
+  const hitChance=(mv.acc/100);
+  if(mv.fx==='multihit') return Math.round(avgDmg*2.5*hitChance);
+  return Math.round(avgDmg*hitChance);
+}
+
+function renderAll(){
+  renderFighter('player');
+  renderFighter('ai');
+  renderMoves();
+  renderItems();
+  renderStats();
+  renderEXP();
+  document.getElementById('r-wave').textContent=G.wave;
+  document.getElementById('r-turn').textContent=G.turn;
+  document.getElementById('r-level').textContent=G.level;
+  document.getElementById('score-top').textContent=G.score.toLocaleString();
+  document.getElementById('wscore-top').textContent=G.waveScore.toLocaleString();
+  document.getElementById('score-lbl').textContent=G.score.toLocaleString();
+  document.getElementById('wave-badge').textContent=`Wave ${G.wave}`;
+  document.getElementById('wave-lbl').textContent=`Round ${G.turn}`;
+  const diffNames=['Novice','Easy','Normal','Hard','Expert','Elite','Master','Legendary'];
+  const diffCls=['badge-info','badge-info','badge-wave','badge-wave','badge-warn','badge-warn','badge-danger','badge-danger'];
+  const di=clamp(G.wave-1,0,diffNames.length-1);
+  document.getElementById('diff-badge').textContent=diffNames[di];
+  document.getElementById('diff-badge').className='badge '+diffCls[di];
+  const dm=document.getElementById('diff-meter');
+  dm.innerHTML='';
+  for(let i=0;i<8;i++){const d=document.createElement('div');d.className='diff-pip'+(i<G.wave?' on':'');dm.appendChild(d);}
+  document.getElementById('turn-line').textContent=
+    G.phase==='player'?`Turn ${G.turn} — your move`:
+    G.phase==='ai'?`Turn ${G.turn} — opponent's move`:
+    `Turn ${G.turn} — battle over`;
+  updateProbTable();
+}
+
+function renderFighter(who){
+  const c=G[who];
+  const pct=Math.max(0,c.hp/c.maxHp);
+  const fill=document.getElementById(`${who}-fill`);
+  fill.style.width=(pct*100).toFixed(1)+'%';
+  fill.className='hpfill '+(pct<=0.25?'hp-low':pct<=0.5?'hp-mid':'hp-high');
+  document.getElementById(`${who}-nums`).textContent=`${Math.max(0,c.hp)}/${c.maxHp}`;
+  const bd=document.getElementById(`${who}-buffs`);
+  const pills=[];
+  if(c.atkBuf>0) pills.push(`<span class="status-pill sp-atk">ATK+${c.atkBuf}</span>`);
+  if(c.defBuf>0) pills.push(`<span class="status-pill sp-def">DEF+${c.defBuf}</span>`);
+  if(c.status){
+    if(c.status.burn>0) pills.push(`<span class="status-pill sp-burn">BURN ${c.status.burn}t</span>`);
+    if(c.status.stun>0) pills.push(`<span class="status-pill sp-stun">STUN</span>`);
+    if(c.status.regen>0) pills.push(`<span class="status-pill sp-regen">REGEN ${c.status.regen}t</span>`);
+    if(c.status.reflect>0) pills.push(`<span class="status-pill sp-crit">REFLECT</span>`);
+    if(who==='player'&&c.status.stimTurns>0) pills.push(`<span class="status-pill sp-atk">STIM ${c.status.stimTurns}t</span>`);
+  }
+  bd.innerHTML=pills.join('');
+}
+
+function renderMoves(){
+  const grid=document.getElementById('moves-grid');
+  grid.innerHTML='';
+  G.player.moves.forEach(mv=>{
+    const btn=document.createElement('button');
+    btn.className='mbtn';
+    btn.disabled=mv.pp<=0||G.busy||G.phase!=='player';
+    btn.innerHTML=`<span class="mbtn-name">${mv.name}</span><span class="mbtn-sub">${mv.desc}</span><span class="mbtn-pp">PP ${mv.pp}/${mv.maxPp}</span>`;
+    btn.addEventListener('click',()=>playerMove(mv.name));
+    grid.appendChild(btn);
+  });
+}
+
+function renderItems(){
+  ['heal','ether','boost'].forEach(k=>{
+    const btn=document.getElementById(`item-${k}`);
+    const n=G.items[k];
+    btn.disabled=n<=0||G.busy||G.phase!=='player';
+    if(k==='heal') btn.textContent=`⚕ Medpack (${n})`;
+    if(k==='ether') btn.textContent=`⚡ Ether (${n})`;
+    if(k==='boost') btn.textContent=`↑ Stim (${n})`;
+  });
+}
+
+function renderStats(){
+  document.getElementById('s-atk').textContent=getAtk(G.player);
+  document.getElementById('s-def').textContent=getDef(G.player);
+  document.getElementById('s-spd').textContent=G.player.spd;
+  document.getElementById('s-crit').textContent=getCrit(G.player)+'%';
+  document.getElementById('s-evade').textContent=getEvade(G.player)+'%';
+  document.getElementById('s-aiatk').textContent=getAtk(G.ai);
+  document.getElementById('s-aidef').textContent=getDef(G.ai);
+  document.getElementById('s-aispd').textContent=G.ai.spd;
+}
+
+function renderEXP(){
+  const pct=clamp(G.exp/G.expNext*100,0,100);
+  document.getElementById('exp-bar').style.width=pct+'%';
+  document.getElementById('exp-lbl').textContent=`${G.exp}/${G.expNext}`;
+  const maxScore=G.wave*1000;
+  document.getElementById('score-bar').style.width=clamp(G.waveScore/maxScore*100,0,100)+'%';
+}
+
+function renderTraits(){
+  const el=document.getElementById('trait-list');
+  if(G.traits.length===0){el.textContent='None yet';return;}
+  el.innerHTML=G.traits.map(t=>`<div style="margin-bottom:3px"><b style="font-size:11px;font-weight:500">${t.name}</b><div style="font-size:10px;color:var(--color-text-tertiary)">${t.desc}</div></div>`).join('');
+}
+
+function updateWaveInfo(){
+  const enemy=G.ai;
+  const el=document.getElementById('wave-info');
+  el.innerHTML=`<b>${enemy.name}</b><br>
+HP: ${enemy.maxHp} | ATK: ${enemy.bAtk} | DEF: ${enemy.bDef}<br>
+Special: ${enemy.special||'none'}<br>
+Reward: ${enemy.reward} score + upgrades`;
+}
+
+function updateProbTable(){
+  const tbl=document.getElementById('prob-table');
+  const rows=G.player.moves.map(mv=>{
+    const exp=expectedDmg(G.player,G.ai,mv);
+    const ppPct=Math.round(mv.pp/mv.maxPp*100);
+    return `<tr><td style="color:var(--color-text-secondary)">${mv.name}</td><td>${exp>0?exp+' dmg':mv.fx==='optimize'?'ATK/DEF+':mv.fx==='regen'?'Regen':mv.fx==='reflect'?'Shield':'—'}</td><td>${mv.acc}%</td><td>${ppPct}% PP</td></tr>`;
+  });
+  tbl.innerHTML='<tr><th>Move</th><th>E[dmg]</th><th>Acc</th><th>PP</th></tr>'+rows.join('');
+}
+
+function setMsg(txt,cur=false){
+  document.getElementById('msgtxt').textContent=txt;
+  document.getElementById('cursor').style.display=cur?'inline-block':'none';
+}
+
+function addLog(txt,cls=''){
+  const box=document.getElementById('logbox');
+  const el=document.createElement('span');
+  el.className='le '+cls;
+  el.textContent=txt;
+  box.appendChild(el);
+  box.scrollTop=box.scrollHeight;
+}
+function clearLog(){document.getElementById('logbox').innerHTML='';}
+
+function setMovesEnabled(on){
+  document.querySelectorAll('.mbtn').forEach((b,i)=>{
+    if(!on){b.disabled=true;return;}
+    const mv=G.player.moves[i];
+    b.disabled=!mv||mv.pp<=0||G.phase!=='player';
+  });
+  renderItems();
+}
+
+function showPop(elId,amt,heal){
+  const el=document.getElementById(elId);
+  if(!el) return;
+  const r=el.getBoundingClientRect();
+  const d=document.createElement('div');
+  d.className='dpop';
+  d.textContent=heal?`+${amt} HP`:`-${amt}`;
+  d.style.color=heal?'#1D9E75':'#E24B4A';
+  d.style.left=(r.left+r.width/2-14+scrollX)+'px';
+  d.style.top=(r.top-6+scrollY)+'px';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),1150);
+}
+
+async function execMove(attKey,defKey,moveName){
+  const att=G[attKey],def=G[defKey];
+  const mv=att.moves.find(m=>m.name===moveName);
+  if(!mv) return;
+  if(mv.pp>0) mv.pp--;
+
+  if(def.status&&def.status.reflect>0&&mv.dmg&&mv.dmg[0]>0){
+    def.status.reflect=0;
+    setMsg(`${att.name} used ${moveName} — REFLECTED!`);
+    addLog(`> ${att.name}: ${moveName} → REFLECTED`,'debuff');
+    const {dmg}=calcDmg(att,att,mv,false);
+    att.hp=Math.max(0,att.hp-dmg);
+    showPop(`${attKey}-fill`,dmg,false);
+    renderFighter(attKey);
+    await delay(900); return;
+  }
+
+  if(att.status&&att.status.stun>0){
+    att.status.stun=0;
+    setMsg(`${att.name} is stunned and cannot move!`);
+    addLog(`> ${att.name}: STUNNED — skipped`,'debuff');
+    await delay(800); return;
+  }
+
+  const hitRoll=Math.random()*100;
+  const evade=defKey==='player'?getEvade(G.player):0;
+  const effectiveAcc=mv.acc-evade;
+  if(hitRoll>effectiveAcc){
+    setMsg(`${att.name} used ${moveName} — missed!`);
+    addLog(`> ${att.name}: ${moveName} → MISS`,'miss');
+    await delay(700); return;
+  }
+
+  if(mv.fx==='optimize'){
+    att.atkBuf=Math.min(8,att.atkBuf+1);att.defBuf=Math.min(8,att.defBuf+1);
+    setMsg(`${att.name} used ${moveName}! ATK and DEF rose!`);
+    addLog(`> ${att.name}: ${moveName} → ATK+DEF↑`,'sys');
+    await delay(750); return;
+  }
+  if(mv.fx==='regen'){
+    att.status.regen=3;
+    setMsg(`${att.name} uses ${moveName}! Regenerating for 3 turns!`);
+    addLog(`> ${att.name}: ${moveName} → REGEN x3`,'sys');
+    await delay(750); return;
+  }
+  if(mv.fx==='reflect'){
+    att.status.reflect=1;
+    setMsg(`${att.name} activates Nullify! Next attack will be reflected!`);
+    addLog(`> ${att.name}: ${moveName} → REFLECT ready`,'sys');
+    await delay(750); return;
+  }
+  if(mv.fx==='multihit'){
+    const hits=rnd(2,3);let total=0;
+    setMsg(`${att.name} used ${moveName}!`);await delay(280);
+    for(let i=0;i<hits;i++){
+      const {dmg,crit}=calcDmg(att,def,mv,false);
+      def.hp-=dmg;total+=dmg;
+      if(att.vamp){const heal=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+heal);}
+      checkPhoenix(def);
+      showPop(`${defKey}-fill`,dmg,false);
+      addLog(`  hit ${i+1}: ${dmg}${crit?' (CRIT!)':''}`,crit?'crit':'hit');
+      renderFighter(defKey);await delay(260);
+    }
+    setMsg(`${moveName} hit ${hits}x! (${total} total)`);
+    gainExpScore(total,attKey);return;
+  }
+  if(mv.fx==='drain'){
+    const {dmg,crit}=calcDmg(att,def,mv,false);
+    def.hp-=dmg;const heal=Math.round(dmg*0.5);att.hp=Math.min(att.maxHp,att.hp+heal);
+    checkPhoenix(def);
+    showPop(`${defKey}-fill`,dmg,false);showPop(`${attKey}-fill`,heal,true);
+    setMsg(`${att.name} used ${moveName}. Drained ${dmg}HP! Restored ${heal}HP.${crit?' Crit!':''}`);
+    addLog(`> ${att.name}: ${moveName} → ${dmg} drain (+${heal}HP)${crit?' CRIT':''}`,crit?'crit':'hit');
+    renderFighter(defKey);renderFighter(attKey);
+    gainExpScore(dmg,attKey);await delay(900);return;
+  }
+  if(mv.fx==='burn'){
+    const {dmg,crit}=calcDmg(att,def,mv,false);
+    def.hp-=dmg;def.status.burn=3;
+    checkPhoenix(def);
+    showPop(`${defKey}-fill`,dmg,false);
+    setMsg(`${att.name} used ${moveName}. ${def.name} is burning!${crit?' Crit!':''}`);
+    addLog(`> ${att.name}: ${moveName} → ${dmg}dmg + BURN${crit?' CRIT':''}`,crit?'crit':'hit');
+    renderFighter(defKey);
+    gainExpScore(dmg,attKey);await delay(900);return;
+  }
+  if(mv.fx==='stun'){
+    const {dmg,crit}=calcDmg(att,def,mv,false);
+    def.hp-=dmg;
+    const hasIronWill=defKey==='player'&&G.traits.find(t=>t.id==='t_tough');
+    if(!hasIronWill&&Math.random()<0.4){def.status.stun=1;}
+    checkPhoenix(def);
+    showPop(`${defKey}-fill`,dmg,false);
+    setMsg(`${att.name} used ${moveName}. ${dmg}dmg!${def.status.stun?' STUNNED!':''}`);
+    addLog(`> ${att.name}: ${moveName} → ${dmg}dmg${def.status.stun?' STUN':''}${crit?' CRIT':''}`,def.status.stun?'debuff':crit?'crit':'hit');
+    renderFighter(defKey);
+    gainExpScore(dmg,attKey);await delay(900);return;
+  }
+  if(mv.fx==='pierce'){
+    const {dmg,crit}=calcDmg(att,def,mv,true);
+    def.hp-=dmg;
+    checkPhoenix(def);
+    showPop(`${defKey}-fill`,dmg,false);
+    setMsg(`${att.name} used ${moveName}. Pierced DEF! ${dmg}dmg!${crit?' Crit!':''}`);
+    addLog(`> ${att.name}: ${moveName} → ${dmg}dmg (PIERCE)${crit?' CRIT':''}`,crit?'crit':'hit');
+    renderFighter(defKey);
+    gainExpScore(dmg,attKey);await delay(900);return;
+  }
+  if(mv.fx==='highcrit'){
+    const savedCrit=G.player.critBonus;
+    G.player.critBonus=(G.player.critBonus||0)+30;
+    const {dmg,crit}=calcDmg(att,def,mv,false);
+    G.player.critBonus=savedCrit;
+    def.hp-=dmg;
+    if(att.vamp){const h=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+h);}
+    checkPhoenix(def);
+    showPop(`${defKey}-fill`,dmg,false);
+    setMsg(`${att.name}: ${moveName} — ${dmg}dmg!${crit?' CRITICAL HIT!':''}`);
+    addLog(`> ${att.name}: ${moveName} → ${dmg}dmg${crit?' CRIT!':''}`,crit?'crit':'hit');
+    renderFighter(defKey);
+    gainExpScore(dmg,attKey);await delay(900);return;
+  }
+  if(mv.fx==='chain'){
+    G.chainCount=(G.chainCount||0)+1;
+    const chainBonus=G.chainCount*10;
+    const savedAtk=att.bAtk;
+    att.bAtk+=Math.floor(chainBonus/10)*2;
+    const {dmg,crit}=calcDmg(att,def,mv,false);
+    att.bAtk=savedAtk;
+    def.hp-=dmg;
+    if(att.vamp){const h=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+h);}
+    checkPhoenix(def);
+    showPop(`${defKey}-fill`,dmg,false);
+    setMsg(`${att.name}: ${moveName} — Chain x${G.chainCount}! ${dmg}dmg!${crit?' Crit!':''}`);
+    addLog(`> ${att.name}: ${moveName} → ${dmg}dmg [chain x${G.chainCount}]${crit?' CRIT':''}`,crit?'crit':'hit');
+    renderFighter(defKey);
+    gainExpScore(dmg,attKey);await delay(900);return;
+  }
+
+  const {dmg,crit}=calcDmg(att,def,mv,false);
+  def.hp-=dmg;
+  if(att.vamp){const h=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+h);}
+  if(defKey==='player'&&G.player.reflect20){const rfDmg=Math.round(dmg*0.2);att.hp-=rfDmg;}
+  if(defKey==='player'&&G.player.reflect10){const rfDmg=Math.round(dmg*0.1);att.hp-=rfDmg;}
+  checkPhoenix(def);
+  showPop(`${defKey}-fill`,dmg,false);
+  setMsg(`${att.name} used ${moveName}. ${dmg} damage!${crit?' Critical hit!':''}`);
+  addLog(`> ${att.name}: ${moveName} → ${dmg}dmg${crit?' CRIT':''}`,attKey==='player'?crit?'crit':'hit':crit?'crit':'ai');
+  renderFighter(defKey);
+  gainExpScore(dmg,attKey);
+  await delay(900);
+}
+
+function checkPhoenix(unit){
+  if(unit===G.player&&G.player.phoenix&&!G.player.phoenixUsed&&unit.hp<=0){
+    unit.hp=1;G.player.phoenixUsed=true;
+    setMsg('PHOENIX PROTOCOL — survived fatal blow at 1 HP!');
+    addLog('> PHOENIX PROTOCOL TRIGGERED','sys');
+  }
+}
+
+function gainExpScore(dmg,attKey){
+  if(attKey==='player'){
+    const expGain=Math.round(dmg*0.8);
+    const scoreGain=Math.round(dmg*(1+(G.traits.find(t=>t.id==='t_tactician')?0.5:0)));
+    G.exp+=expGain;G.waveScore+=scoreGain;G.score+=scoreGain;
+    while(G.exp>=G.expNext){
+      G.exp-=G.expNext;G.level++;G.expNext=Math.round(G.expNext*1.35);
+      addLog(`> LEVEL UP! Now level ${G.level}`,'sys');
+    }
+  }
+}
+
+function tickStatus(who){
+  const c=G[who];
+  if(!c.status) return;
+  if(c.status.burn>0){
+    const burnDmg=Math.round(c.maxHp*0.06);
+    c.hp=Math.max(0,c.hp-burnDmg);
+    c.status.burn--;
+    addLog(`> ${c.name}: BURN — ${burnDmg} damage`,'debuff');
+    renderFighter(who);
+  }
+  if(c.status.regen>0){
+    const regenAmt=Math.round(c.maxHp*0.08);
+    c.hp=Math.min(c.maxHp,c.hp+regenAmt);
+    c.status.regen--;
+    showPop(`${who}-fill`,regenAmt,true);
+    addLog(`> ${c.name}: REGEN — +${regenAmt} HP`,'hit');
+    renderFighter(who);
+  }
+  if(c.status.stimTurns>0) c.status.stimTurns--;
+}
+
+function aiPick(){
+  const avail=G.ai.moves.filter(m=>m.pp>0);
+  if(!avail.length) return G.ai.moves[0].name;
+  const aiPct=G.ai.hp/G.ai.maxHp;
+  const plPct=G.player.hp/G.player.maxHp;
+  if(G.ai.special==='drain'){const d=avail.find(m=>m.fx==='drain');if(d&&aiPct<0.5) return d.name;}
+  if(G.ai.special==='stun'){const s=avail.find(m=>m.fx==='stun');if(s&&Math.random()<0.4) return s.name;}
+  if(G.ai.special==='burn'){const b=avail.find(m=>m.fx==='burn');if(b&&!G.player.status.burn&&Math.random()<0.5) return b.name;}
+  if(G.ai.special==='reflect'){const r=avail.find(m=>m.fx==='reflect');if(r&&Math.random()<0.3) return r.name;}
+  if(plPct<0.3){const big=avail.reduce((a,b)=>b.dmg[1]>a.dmg[1]?b:a);if(Math.random()<0.8) return big.name;}
+  let r=Math.random()*avail.reduce((s,m)=>s+m.pp,0);
+  for(const m of avail){r-=m.pp;if(r<=0) return m.name;}
+  return avail[0].name;
+}
+
+async function playerMove(name){
+  if(G.busy||G.phase!=='player') return;
+  G.busy=true;G.phase='ai';
+  G.chainCount=G.chainCount||0;
+  if(!G.player.moves.find(m=>m.name===name)?.fx?.includes('chain')) G.chainCount=0;
+  setMovesEnabled(false);
+
+  await execMove('player','ai',name);
+  tickStatus('player');tickStatus('ai');
+  renderAll();
+
+  if(G.ai.hp<=0){G.ai.hp=0;renderFighter('ai');await delay(300);endBattle('player');return;}
+
+  setMsg(`${G.ai.name} is computing...`,false);
+  await delay(500+G.wave*30);
+
+  if(G.ai.status&&G.ai.status.stun>0){
+    G.ai.status.stun=0;
+    addLog(`> ${G.ai.name}: STUNNED — forced skip`,'debuff');
+    setMsg(`${G.ai.name} is stunned!`);
+    await delay(700);
+  } else {
+    await execMove('ai','player',aiPick());
+  }
+  tickStatus('ai');
+  renderAll();
+
+  if(G.player.hp<=0){G.player.hp=0;renderFighter('player');await delay(300);endBattle('ai');return;}
+
+  G.turn++;G.phase='player';G.busy=false;
+  renderAll();
+  setMsg(`What will ${G.player.name} do?`,true);
+  setMovesEnabled(true);
+}
+
+function useItem(type){
+  if(G.busy||G.phase!=='player'||G.items[type]<=0) return;
+  G.items[type]--;
+  if(type==='heal'){
+    const amt=35+G.level*2;
+    G.player.hp=Math.min(G.player.maxHp,G.player.hp+amt);
+    setMsg(`Medpack used! Restored ${amt} HP.`);
+    addLog(`> Item: Medpack → +${amt}HP`,'proj');
+    renderFighter('player');
+  } else if(type==='ether'){
+    G.player.moves.forEach(m=>{m.pp=m.maxPp;});
+    setMsg('Ether used! All PP restored.');
+    addLog('> Item: Ether → Full PP','proj');
+    renderMoves();
+  } else if(type==='boost'){
+    G.player.status.stimTurns=3;
+    setMsg('Stim used! ATK +40% for 3 turns.');
+    addLog('> Item: Stim → ATK×1.4 for 3t','proj');
+    renderFighter('player');
+  }
+  renderItems();
+}
+
+function rollUpgrades(){
+  const available=ALL_UPGRADES.filter(u=>{
+    if(G.appliedUpgrades.includes(u.id)&&u.id!=='u_medpacks'&&u.id!=='u_ethers'&&u.id!=='u_stims') return false;
+    return u.check(G);
+  });
+  const shuffled=[...available].sort(()=>Math.random()-0.5);
+  const epicPool=shuffled.filter(u=>u.rarity==='epic');
+  const rarePool=shuffled.filter(u=>u.rarity==='rare');
+  const commonPool=shuffled.filter(u=>u.rarity==='common');
+  const picks=[];
+  if(G.wave>=3&&epicPool.length&&Math.random()<0.4) picks.push(epicPool[0]);
+  if(picks.length<3&&rarePool.length&&(G.wave>=2||Math.random()<0.5)) picks.push(rarePool[0]);
+  while(picks.length<3&&commonPool.length){
+    const idx=commonPool.findIndex(u=>!picks.includes(u));
+    if(idx<0) break;
+    picks.push(commonPool[idx]);
+    commonPool.splice(idx,1);
+  }
+  while(picks.length<3&&shuffled.length){
+    const u=shuffled.find(u=>!picks.includes(u));
+    if(!u) break;
+    picks.push(u);
+  }
+  return picks.slice(0,3);
+}
+
+function offerMoveUnlock(){
+  const tier=Math.floor((G.wave-1)/2);
+  const eligible=BASE_PMOVES.filter(m=>m.tier===tier&&!G.player.moves.find(x=>x.id===m.id));
+  if(!eligible.length) return null;
+  return eligible[rnd(0,eligible.length-1)];
+}
+
+function endBattle(winner){
+  G.phase='end';setMovesEnabled(false);
+  const box=document.getElementById('resultbox');
+  const ttl=document.getElementById('result-title');
+  const det=document.getElementById('result-detail');
+  document.getElementById('main-layout').style.display='none';
+
+  if(winner==='player'){
+    ttl.textContent='VICTORY';
+    const baseReward=G.ai.reward;
+    const speedBonus=Math.max(0,(15-G.turn)*10);
+    const hpBonus=Math.round(G.player.hp/G.player.maxHp*100);
+    const total=baseReward+speedBonus+hpBonus;
+    G.waveScore+=total;G.score+=total;
+    det.textContent=`Wave ${G.wave} cleared!\n\nBase reward:   ${baseReward}\nSpeed bonus:   +${speedBonus}\nHP bonus:      +${hpBonus}\nTotal earned:  ${total}\n\nCumulative score: ${G.score.toLocaleString()}\nLevel: ${G.level}`;
+    addLog(`=== VICTORY Wave ${G.wave} — +${total} ===`,'sys');
+
+    const upgrades=rollUpgrades();
+    G.pendingUpgrades=upgrades;
+    const upDiv=document.getElementById('upgrade-pick');
+    const chDiv=document.getElementById('upgrade-choices');
+    upDiv.style.display='block';
+    chDiv.innerHTML='';
+
+    const newMove=offerMoveUnlock();
+    if(newMove&&G.player.moves.length<6){
+      const moveUpgrade={
+        id:'move_'+newMove.id,name:'Learn: '+newMove.name,
+        desc:`Add ${newMove.name} (${newMove.desc}) to your moveset`,
+        rarity:'rare',
+        apply:g=>{g.player.moves.push({...newMove,pp:newMove.maxPp});},
+        check:()=>true,
+      };
+      upgrades.unshift(moveUpgrade);
+    }
+
+    const rarityColors={common:'var(--color-text-secondary)',rare:'#185FA5',epic:'#534AB7'};
+    upgrades.slice(0,3).forEach(u=>{
+      const card=document.createElement('div');
+      card.className='upgrade-card';
+      card.style.cssText='width:160px;cursor:pointer;border:1px solid var(--color-border-secondary)';
+      card.innerHTML=`<div class="utitle">${u.name}</div><div class="urarity" style="color:${rarityColors[u.rarity]||'gray'}">${u.rarity}</div><div class="udesc">${u.desc}</div><button style="width:100%;margin-top:4px">Choose</button>`;
+      card.querySelector('button').addEventListener('click',()=>{
+        G.appliedUpgrades.push(u.id);
+        u.apply(G);
+        upDiv.style.display='none';
+        document.getElementById('next-btn').style.display='inline-block';
+        addLog(`> Upgrade chosen: ${u.name}`,'proj');
+      });
+      chDiv.appendChild(card);
+    });
+
+    if(G.wave%3===0){
+      const traitPool=TRAITS.filter(t=>!G.traits.find(x=>x.id===t.id));
+      if(traitPool.length){
+        const t=traitPool[rnd(0,traitPool.length-1)];
+        const card=document.createElement('div');
+        card.className='upgrade-card';
+        card.style.cssText='width:160px;cursor:pointer;border:2px solid #534AB7';
+        card.innerHTML=`<div class="utitle">${t.name}</div><div class="urarity" style="color:#534AB7">passive trait</div><div class="udesc">${t.desc}</div><button style="width:100%;margin-top:4px">Unlock Trait</button>`;
+        card.querySelector('button').addEventListener('click',()=>{
+          G.traits.push(t);
+          upDiv.style.display='none';
+          document.getElementById('next-btn').style.display='inline-block';
+          addLog(`> Trait unlocked: ${t.name}`,'proj');
+        });
+        chDiv.appendChild(card);
+      }
+    }
+    document.getElementById('next-btn').style.display='none';
+  } else {
+    ttl.textContent='DEFEAT';
+    det.textContent=`Eliminated on Wave ${G.wave}, Turn ${G.turn}.\n\nFinal score: ${G.score.toLocaleString()}\nLevel reached: ${G.level}\nUpgrades collected: ${G.appliedUpgrades.length}`;
+    addLog('=== DEFEAT — simulation terminated ===','ai');
+    document.getElementById('upgrade-pick').style.display='none';
+    document.getElementById('next-btn').style.display='none';
+  }
+  renderAll();
+  box.classList.add('show');
+}
+
+function nextWave(){
+  const prevPlayer={...G.player,moves:G.player.moves.map(m=>({...m,pp:m.maxPp})),status:{burn:0,stun:0,regen:0,reflect:0,stimTurns:0},phoenixUsed:false};
+  G.wave++;G.turn=1;G.waveScore=0;G.phase='player';G.busy=false;G.chainCount=0;
+  prevPlayer.hp=Math.min(prevPlayer.maxHp,Math.round(prevPlayer.maxHp*0.7));
+  G.player=prevPlayer;
+  G.ai=buildEnemy(G.wave-1);
+  document.getElementById('resultbox').classList.remove('show');
+  document.getElementById('main-layout').style.display='';
+  document.getElementById('next-btn').style.display='none';
+  clearLog();
+  renderAll();
+  renderTraits();
+  updateWaveInfo();
+  setMsg(`Wave ${G.wave} — What will ${G.player.name} do?`,true);
+  setMovesEnabled(true);
+  addLog(`=== WAVE ${G.wave} START — ${G.ai.name} ===`,'sys');
+}
+
+initGame();
+</script>
