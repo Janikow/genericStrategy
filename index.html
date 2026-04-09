@@ -856,9 +856,13 @@ function showStatUpgrade(onDone){
   const grid=document.getElementById('stat-up-grid');
   sec.style.display='block';
   grid.innerHTML='';
-  G.player.maxHp += 30;
-  G.player.hp = Math.min(G.player.hp + 30, G.player.maxHp);
-  addLog('> Bonus: HP +30','proj');
+  G.player.maxHp += 25;
+  G.player.hp = Math.min(G.player.hp + 25, G.player.maxHp);
+  G.player.bAtk+=2;
+  G.player.bDef+=2;
+  G.player.spd+=1;
+  
+  addLog('> Leveled Up');
   const stats=[
     {label:'ATK +2', apply:()=>{G.player.bAtk+=2;addLog('> Stat point: ATK +2','proj');}},
     {label:'DEF +2', apply:()=>{G.player.bDef+=2;addLog('> Stat point: DEF +2','proj');}},
