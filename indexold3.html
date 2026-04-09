@@ -1,110 +1,108 @@
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;font-size:13px;color:#000;background:#fff}
+body{font-family:Arial,sans-serif;font-size:13px;color:var(--color-text-primary);background:var(--color-background-primary)}
 h2{font-size:13px;font-weight:bold;margin:0 0 3px}
-button{font-family:Arial,sans-serif;font-size:12px;background:#fff;border:1px solid #000;cursor:pointer;padding:2px 8px;border-radius:0;color:#000}
-button:hover:not(:disabled){background:#e0e0e0}
-button:disabled{color:#aaa;cursor:default;border-color:#ccc}
+button{font-family:Arial,sans-serif;font-size:12px;background:var(--color-background-primary);border:1px solid var(--color-border-primary);cursor:pointer;padding:2px 8px;border-radius:0;color:var(--color-text-primary)}
+button:hover:not(:disabled){background:var(--color-background-secondary)}
+button:disabled{color:var(--color-text-tertiary);cursor:default;border-color:var(--color-border-tertiary)}
 button:active:not(:disabled){transform:scale(0.98)}
-.topbar{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #000;padding:5px 10px 4px;background:#fff}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--color-border-primary);padding:5px 10px 4px}
 .topbar h1{font-size:15px;font-weight:bold;margin:0 0 1px}
-.topbar-sub{font-size:11px;color:#555}
-.topbar-right{text-align:right;font-size:11px;color:#555}
+.topbar-sub{font-size:11px;color:var(--color-text-secondary)}
+.topbar-right{text-align:right;font-size:11px;color:var(--color-text-secondary)}
 .layout{display:grid;grid-template-columns:1.2fr 1fr 0.85fr;gap:8px;padding:8px}
 .col{display:flex;flex-direction:column;gap:8px}
 .sec-head{font-weight:bold;font-size:13px;display:block;margin-bottom:2px}
-hr.divider{border:none;border-top:1px solid #000;margin:2px 0 5px}
-hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
-.arena{border:1px solid #000;padding:5px 7px}
-.arena-hdr{display:flex;justify-content:space-between;font-size:10px;color:#666;margin-bottom:3px}
+hr.divider{border:none;border-top:1px solid var(--color-border-primary);margin:2px 0 5px}
+hr.thin{border:none;border-top:1px solid var(--color-border-tertiary);margin:4px 0}
+.arena{border:1px solid var(--color-border-primary);padding:5px 7px}
+.arena-hdr{display:flex;justify-content:space-between;font-size:10px;color:var(--color-text-secondary);margin-bottom:3px}
 .frow{display:flex;align-items:center;gap:5px;margin:3px 0}
 .fname{font-weight:bold;font-size:12px;width:110px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hpwrap{flex:1;display:flex;align-items:center;gap:4px}
-.hptrack{flex:1;height:9px;border:1px solid #000;background:#fff;overflow:hidden}
-.hpfill{height:100%;background:#000;transition:width 0.3s}
-.hpfill.mid{background:#555}
-.hpfill.low{background:#aaa}
+.hptrack{flex:1;height:9px;border:1px solid var(--color-border-primary);background:var(--color-background-primary);overflow:hidden}
+.hpfill{height:100%;background:var(--color-text-primary);transition:width 0.3s}
+.hpfill.mid{background:var(--color-text-secondary)}
+.hpfill.low{background:var(--color-text-tertiary)}
 .hpnums{font-size:10px;width:58px;text-align:right;flex-shrink:0;font-family:'Courier New',monospace}
-.sbadge{font-size:9px;border:1px solid #666;padding:0 3px;color:#444;font-style:italic;margin-left:2px;flex-shrink:0}
-.vsrow{text-align:center;font-size:10px;color:#aaa;letter-spacing:3px;margin:1px 0}
-#msgbox{border:1px solid #000;padding:4px 6px;min-height:36px;font-size:12px;font-family:'Courier New',monospace;background:#fffff8;line-height:1.5}
-.cursor{display:inline-block;width:7px;height:11px;background:#000;vertical-align:middle;margin-left:1px;animation:blink 0.9s step-end infinite}
+.sbadge{font-size:9px;border:1px solid var(--color-border-secondary);padding:0 3px;color:var(--color-text-secondary);font-style:italic;margin-left:2px;flex-shrink:0}
+.vsrow{text-align:center;font-size:10px;color:var(--color-text-tertiary);letter-spacing:3px;margin:1px 0}
+#msgbox{border:1px solid var(--color-border-primary);padding:4px 6px;min-height:36px;font-size:12px;font-family:'Courier New',monospace;background:var(--color-background-secondary);line-height:1.5}
+.cursor{display:inline-block;width:7px;height:11px;background:var(--color-text-primary);vertical-align:middle;margin-left:1px;animation:blink 0.9s step-end infinite}
 @keyframes blink{50%{opacity:0}}
 .moves-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px}
 .mbtn{text-align:left;padding:2px 5px;width:100%;border-radius:0}
 .mbtn-name{font-weight:bold;font-size:12px;display:block}
-.mbtn-sub{font-size:10px;color:#666;display:block;margin-top:1px}
-.mbtn-pp{font-size:10px;color:#999;font-family:'Courier New',monospace}
+.mbtn-sub{font-size:10px;color:var(--color-text-secondary);display:block;margin-top:1px}
+.mbtn-pp{font-size:10px;color:var(--color-text-tertiary);font-family:'Courier New',monospace}
 .stattbl{width:100%;border-collapse:collapse;font-size:11px;font-family:'Courier New',monospace}
 .stattbl td{padding:1px 0}
-.stattbl .k{color:#555;padding-right:6px;width:55%}
+.stattbl .k{color:var(--color-text-secondary);padding-right:6px;width:55%}
 .stattbl .v{font-weight:bold}
-#logbox{height:110px;overflow-y:auto;font-family:'Courier New',monospace;font-size:10px;line-height:1.6;border:1px solid #ccc;padding:3px 5px;background:#fafafa}
+#logbox{height:110px;overflow-y:auto;font-family:'Courier New',monospace;font-size:10px;line-height:1.6;border:1px solid var(--color-border-tertiary);padding:3px 5px;background:var(--color-background-secondary)}
 .le{display:block}
 .le.sys{font-weight:bold}
 .le.hit{}
 .le.crit{font-weight:bold}
-.le.ai{color:#555;font-style:italic}
-.le.miss{color:#999}
-.le.proj{color:#333;font-style:italic}
-.le.debuff{color:#333;font-style:italic}
-#resultbox{display:none;border:2px solid #000;padding:10px;margin:8px;text-align:center}
+.le.ai{color:var(--color-text-secondary);font-style:italic}
+.le.miss{color:var(--color-text-tertiary)}
+.le.proj{color:var(--color-text-secondary);font-style:italic}
+.le.debuff{color:var(--color-text-secondary);font-style:italic}
+#resultbox{display:none;border:2px solid var(--color-border-primary);padding:10px;margin:8px;text-align:center}
 #resultbox.show{display:block}
 #result-title{font-size:20px;font-weight:bold;display:block;margin-bottom:4px}
-#result-detail{font-size:11px;font-family:'Courier New',monospace;color:#333;white-space:pre;line-height:1.7;margin-bottom:8px}
-.upgrade-card{border:1px solid #999;padding:6px 8px;margin-bottom:4px;background:#fff;cursor:pointer}
-.upgrade-card:hover{background:#f5f5f5}
+#result-detail{font-size:11px;font-family:'Courier New',monospace;color:var(--color-text-secondary);white-space:pre;line-height:1.7;margin-bottom:8px}
+.upgrade-card{border:1px solid var(--color-border-secondary);padding:6px 8px;margin-bottom:4px;background:var(--color-background-primary);cursor:pointer}
+.upgrade-card:hover{background:var(--color-background-secondary)}
 .utitle{font-size:12px;font-weight:bold;margin-bottom:1px}
-.udesc{font-size:10px;color:#555;margin-bottom:4px;line-height:1.4}
+.udesc{font-size:10px;color:var(--color-text-secondary);margin-bottom:4px;line-height:1.4}
 .urarity{font-size:10px;font-style:italic;margin-bottom:3px}
-.rarity-common{color:#555}
-.rarity-rare{color:#000;font-weight:bold}
-.rarity-epic{color:#000;font-weight:bold;text-transform:uppercase}
-.choose-banner{font-size:12px;font-weight:bold;border-bottom:1px solid #000;margin-bottom:5px;padding-bottom:3px}
+.rarity-common{color:var(--color-text-secondary)}
+.rarity-rare{color:var(--color-text-primary);font-weight:bold}
+.rarity-epic{color:var(--color-text-primary);font-weight:bold;text-transform:uppercase}
+.choose-banner{font-size:12px;font-weight:bold;border-bottom:1px solid var(--color-border-primary);margin-bottom:5px;padding-bottom:3px}
 .dpop{position:fixed;pointer-events:none;font-family:'Courier New',monospace;font-size:13px;font-weight:bold;animation:dpopAnim 1.1s ease-out forwards;z-index:9999}
 @keyframes dpopAnim{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}
 .prob-table{width:100%;border-collapse:collapse;font-size:10px;font-family:'Courier New',monospace;margin-top:3px}
-.prob-table td,.prob-table th{padding:2px 5px;border:1px solid #ccc}
-.prob-table th{background:#f0f0f0;font-weight:bold}
+.prob-table td,.prob-table th{padding:2px 5px;border:1px solid var(--color-border-tertiary)}
+.prob-table th{background:var(--color-background-secondary);font-weight:bold}
 .item-row{display:flex;gap:4px}
 .item-row button{flex:1;font-size:11px}
-.wave-meta{font-size:10px;color:#666;margin-bottom:4px}
+.wave-meta{font-size:10px;color:var(--color-text-secondary);margin-bottom:4px}
 .trait-item{margin-bottom:3px}
 .trait-name{font-size:11px;font-weight:bold}
-.trait-desc{font-size:10px;color:#666}
-.radar-wrap{border:1px solid #ccc;padding:5px;background:#fafafa}
+.trait-desc{font-size:10px;color:var(--color-text-secondary)}
+.radar-wrap{border:1px solid var(--color-border-tertiary);padding:5px;background:var(--color-background-secondary)}
 .radar-legend{display:flex;gap:10px;font-size:10px;font-family:'Courier New',monospace;justify-content:center;margin-top:4px}
 .legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:middle}
 .stat-up-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:4px}
-.shop-section{border:1px solid #000;padding:5px 7px}
-.shop-hdr{display:flex;justify-content:space-between;font-size:10px;color:#666;margin-bottom:3px}
-.shop-title{font-size:10px;color:#666}
-.shop-gold{font-family:'Courier New',monospace;font-size:10px;color:#666}
+.shop-section{border:1px solid var(--color-border-primary);padding:5px 7px}
+.shop-hdr{display:flex;justify-content:space-between;font-size:10px;color:var(--color-text-secondary);margin-bottom:3px}
 .shop-items-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px}
-.shop-item{border:1px solid #000;padding:3px 4px;background:#fff;cursor:pointer;text-align:left;width:100%}
-.shop-item:hover:not(:disabled){background:#e0e0e0}
-.shop-item:disabled{color:#aaa;border-color:#ccc;cursor:default}
+.shop-item{border:1px solid var(--color-border-primary);padding:3px 4px;background:var(--color-background-primary);cursor:pointer;text-align:left;width:100%}
+.shop-item:hover:not(:disabled){background:var(--color-background-secondary)}
+.shop-item:disabled{color:var(--color-text-tertiary);border-color:var(--color-border-tertiary);cursor:default}
 .shop-item-name{font-size:11px;font-weight:bold;display:block}
-.shop-item-cost{font-size:10px;font-family:'Courier New',monospace;color:#666;display:block}
-.shop-empty{font-size:10px;color:#aaa;font-style:italic;text-align:center;padding:4px;grid-column:1/-1}
+.shop-item-cost{font-size:10px;font-family:'Courier New',monospace;color:var(--color-text-secondary);display:block}
+.shop-empty{font-size:10px;color:var(--color-text-tertiary);font-style:italic;text-align:center;padding:4px;grid-column:1/-1}
 #minigame-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:8000;align-items:center;justify-content:center;flex-direction:column}
 #minigame-overlay.active{display:flex}
-.mg-box{background:#fff;border:2px solid #000;padding:14px 20px;min-width:300px;text-align:center;max-width:420px}
-.mg-title{font-weight:bold;font-size:14px;margin-bottom:4px}
-.mg-move{font-size:12px;color:#555;margin-bottom:4px}
-.mg-threshold{font-size:10px;color:#999;margin-bottom:6px}
-.mg-timer-bar-wrap{background:#eee;border:1px solid #aaa;height:8px;margin-bottom:10px;overflow:hidden}
-.mg-timer-bar{height:100%;background:#000;transition:width 0.05s linear}
+.mg-box{background:var(--color-background-primary);border:2px solid var(--color-border-primary);padding:14px 20px;min-width:300px;text-align:center;max-width:440px}
+.mg-title{font-weight:bold;font-size:14px;margin-bottom:4px;color:var(--color-text-primary)}
+.mg-move{font-size:12px;color:var(--color-text-secondary);margin-bottom:8px}
+.mg-timer-bar-wrap{background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);height:8px;margin-bottom:10px;overflow:hidden}
+.mg-timer-bar{height:100%;background:var(--color-text-primary);transition:width 0.05s linear}
 .mg-keys-row{display:flex;gap:8px;justify-content:center;margin-bottom:8px;flex-wrap:wrap}
-.mg-key{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:2px solid #000;font-size:18px;font-weight:bold;background:#fff;transition:background 0.1s,border-color 0.1s;user-select:none}
-.mg-key.hit{background:#000;color:#fff;border-color:#000}
-.mg-key.miss{background:#ddd;color:#999;border-color:#aaa}
-.mg-key.next{border-color:#000;box-shadow:0 0 0 2px #000}
-.mg-key.pending{border-color:#aaa;color:#aaa}
-.mg-result{font-size:13px;font-weight:bold;margin-top:6px;min-height:20px;font-family:'Courier New',monospace}
-.mg-hint{font-size:10px;color:#777;margin-top:4px}
-.mg-progress{font-size:10px;font-family:'Courier New',monospace;color:#555;margin-bottom:6px}
+.mg-key{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:2px solid var(--color-border-primary);font-size:16px;font-weight:bold;background:var(--color-background-primary);color:var(--color-text-primary);transition:background 0.1s,border-color 0.1s;user-select:none}
+.mg-key.hit{background:var(--color-text-primary);color:var(--color-background-primary)}
+.mg-key.miss{background:var(--color-background-secondary);color:var(--color-text-tertiary);border-color:var(--color-border-tertiary)}
+.mg-key.next{border-color:var(--color-text-primary);box-shadow:0 0 0 2px var(--color-border-primary)}
+.mg-key.pending{border-color:var(--color-border-tertiary);color:var(--color-text-tertiary)}
+.mg-result{font-size:13px;font-weight:bold;margin-top:6px;min-height:20px;font-family:'Courier New',monospace;color:var(--color-text-primary)}
+.mg-hint{font-size:10px;color:var(--color-text-secondary);margin-top:4px}
+.mg-progress{font-size:10px;font-family:'Courier New',monospace;color:var(--color-text-secondary);margin-bottom:6px}
+.mg-threshold{font-size:10px;color:var(--color-text-tertiary);margin-bottom:4px}
 </style>
 
 <div class="topbar">
@@ -161,7 +159,7 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
       </div>
     </div>
 
-    <div id="msgbox"><span style="font-size:10px;color:#888">&gt; </span><span id="msgtxt">Initializing...</span><span class="cursor" id="cursor"></span></div>
+    <div id="msgbox"><span style="font-size:10px;color:var(--color-text-tertiary)">&gt; </span><span id="msgtxt">Initializing...</span><span class="cursor" id="cursor"></span></div>
 
     <div>
       <span class="sec-head">Select Move</span>
@@ -184,8 +182,8 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
       <hr class="divider">
       <div class="shop-section">
         <div class="shop-hdr">
-          <span class="shop-title" id="shop-status">Open</span>
-          <span class="shop-gold">Gold: <b id="gold-display">0</b></span>
+          <span id="shop-status">Open</span>
+          <span>Gold: <b id="gold-display">0</b></span>
         </div>
         <div class="shop-items-grid" id="shop-grid"></div>
       </div>
@@ -199,8 +197,8 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
       <div class="radar-wrap">
         <canvas id="radarChart" role="img" aria-label="Radar chart comparing player and opponent stats" style="width:100%;max-height:200px"></canvas>
         <div class="radar-legend">
-          <span><span class="legend-dot" style="background:#333"></span>You</span>
-          <span><span class="legend-dot" style="background:#999"></span>Opponent</span>
+          <span><span class="legend-dot" style="background:var(--color-text-primary)"></span>You</span>
+          <span><span class="legend-dot" style="background:var(--color-text-tertiary)"></span>Opponent</span>
         </div>
       </div>
     </div>
@@ -246,20 +244,20 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
     <div>
       <span class="sec-head">Expected Damage</span>
       <hr class="divider">
-      <div style="font-size:10px;color:#666;margin-bottom:3px">Per move vs current opponent</div>
+      <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:3px">Per move vs current opponent</div>
       <table class="prob-table" id="prob-table"></table>
     </div>
 
     <div>
       <span class="sec-head">Passive Traits</span>
       <hr class="divider">
-      <div id="trait-list" style="font-size:11px;color:#666">None yet</div>
+      <div id="trait-list" style="font-size:11px;color:var(--color-text-secondary)">None yet</div>
     </div>
 
     <div>
       <span class="sec-head">Wave Info</span>
       <hr class="divider">
-      <div id="wave-info" style="font-size:11px;color:#555;line-height:1.7"></div>
+      <div id="wave-info" style="font-size:11px;color:var(--color-text-secondary);line-height:1.7"></div>
     </div>
   </div>
 </div>
@@ -268,7 +266,7 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
   <div class="mg-box">
     <div class="mg-title" id="mg-title">EXECUTE MOVE</div>
     <div class="mg-move" id="mg-move-name"></div>
-    <div class="mg-threshold" id="mg-threshold">Need 50%+ keys to hit</div>
+    <div class="mg-threshold" id="mg-threshold">Need 50%+ to hit</div>
     <div class="mg-progress" id="mg-progress">Key 1 / 5</div>
     <div class="mg-timer-bar-wrap"><div class="mg-timer-bar" id="mg-timer-bar" style="width:100%"></div></div>
     <div class="mg-keys-row" id="mg-keys-row"></div>
@@ -345,10 +343,10 @@ let mgResolve=null,mgActive=false,mgAnimFrame=null;
 function runMinigame(moveName,tier){
   return new Promise(resolve=>{
     mgResolve=resolve;mgActive=true;
-    // 5 keys base, +1 per tier, max 12
+    // Increased key count: 5 base + tier, max 12
     const numKeys=clamp(5+tier,5,12);
-    // time per key: 1400ms base, -100ms per tier, min 500ms
-    const timePerKey=Math.max(500,1400-tier*100);
+    // Time per key: 1300ms base, -80ms per tier, min 500ms
+    const timePerKey=Math.max(500,1300-tier*80);
     const seq=genArrowSeq(numKeys);
     let idx=0,hits=0;
 
@@ -356,8 +354,9 @@ function runMinigame(moveName,tier){
     document.getElementById('mg-result').textContent='';
     document.getElementById('mg-hint').textContent='Press the highlighted arrow key!';
     document.getElementById('mg-progress').textContent='Key 1 / '+numKeys;
-    const needed=Math.ceil(numKeys/2);
-    document.getElementById('mg-threshold').textContent='Need '+needed+'/'+numKeys+' to hit';
+    // Show threshold info
+    const needed=Math.ceil(numKeys*0.5);
+    document.getElementById('mg-threshold').textContent='Need '+needed+'/'+numKeys+' keys to hit (50%+)';
 
     const keysRow=document.getElementById('mg-keys-row');
     keysRow.innerHTML='';
@@ -397,13 +396,14 @@ function runMinigame(moveName,tier){
       bar.style.width='0%';
       const ratio=hits/numKeys;
       let grade,mult;
+      // Below 50% = MISS (attack fails entirely)
       if(ratio<0.5){grade='MISS';mult=0;}
       else if(ratio>=0.85){grade='PERFECT';mult=1.5;}
       else if(ratio>=0.7){grade='GREAT';mult=1.25;}
       else if(ratio>=0.6){grade='GOOD';mult=1.1;}
       else{grade='OK';mult=1.0;}
-      document.getElementById('mg-result').textContent=
-        grade+'  '+hits+'/'+numKeys+' keys  '+(mult===0?'— ATTACK FAILS':'\xd7'+mult.toFixed(2)+' DMG');
+      const missText=mult===0?' — ATTACK FAILS':'';
+      document.getElementById('mg-result').textContent=grade+'  '+hits+'/'+numKeys+' keys  '+(mult===0?'MISS':'\xd7'+mult.toFixed(2)+' DMG')+missText;
       document.getElementById('mg-hint').textContent='';
       document.removeEventListener('keydown',onKey);
       setTimeout(()=>{
@@ -418,11 +418,14 @@ function runMinigame(moveName,tier){
       if(!arrows.includes(e.key))return;
       e.preventDefault();
       if(e.key===seq[idx].key){
-        keyEls[idx].className='mg-key hit';hits++;
-        cancelAnimationFrame(mgAnimFrame);setTimeout(advance,70);
+        keyEls[idx].className='mg-key hit';
+        hits++;
+        cancelAnimationFrame(mgAnimFrame);
+        setTimeout(advance,70);
       }else{
         keyEls[idx].className='mg-key miss';
-        cancelAnimationFrame(mgAnimFrame);setTimeout(advance,70);
+        cancelAnimationFrame(mgAnimFrame);
+        setTimeout(advance,70);
       }
     }
     document.addEventListener('keydown',onKey);
@@ -447,7 +450,8 @@ const BASE_PMOVES=[
   {id:'reflect',name:'Nullify',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'Negate next attack | T3',fx:'reflect',tier:3},
 ];
 
-// Base enemy pools — MK cycling scales these multiplicatively
+// Enemy base pools — these are the "template" stats for wave cycle position
+// Scaling is applied multiplicatively on top for MK+ cycles
 const ENEMY_POOLS=[
   {hp:120,atk:11,def:9, spd:8, special:null,      reward:120,gold:40},
   {hp:145,atk:13,def:11,spd:9, special:'drain',    reward:200,gold:55},
@@ -463,11 +467,12 @@ function buildEnemy(waveIdx){
   const poolIdx=waveIdx%ENEMY_POOLS.length;
   const e=ENEMY_POOLS[poolIdx];
   const cycle=Math.floor(waveIdx/ENEMY_POOLS.length);
-  // Per-cycle multiplicative scaling — each MK cycle is a meaningful step up
+  // Each MK cycle: +30% HP, +25% ATK, +20% DEF, +10% reward/gold
   const hpScale=Math.pow(1.30,cycle);
   const atkScale=Math.pow(1.25,cycle);
   const defScale=Math.pow(1.20,cycle);
   const rewardScale=Math.pow(1.10,cycle);
+  // Within a cycle, still apply gentle per-wave scaling (+8% per wave within cycle)
   const withinScale=1+poolIdx*0.08;
   return{
     name:getEnemyName(waveIdx),
@@ -487,35 +492,43 @@ function buildEnemy(waveIdx){
   };
 }
 
+// Enemies get more moves as they level up, with scaled damage
 function buildAIMoves(waveIdx){
   const tier=Math.floor(waveIdx/2);
   const cycle=Math.floor(waveIdx/ENEMY_POOLS.length);
-  // Damage scales with both wave progression and MK cycle
+  // Damage scalar based on overall progression
   const dmgScale=1+waveIdx*0.12+cycle*0.15;
 
-  function sm(m){
-    return{...m,dmg:[Math.round(m.dmg[0]*dmgScale),Math.round(m.dmg[1]*dmgScale)],pp:m.maxPp};
+  function scaledMove(m){
+    return{
+      ...m,
+      dmg:[Math.round(m.dmg[0]*dmgScale),Math.round(m.dmg[1]*dmgScale)],
+      pp:m.maxPp,
+    };
   }
 
+  // All enemies get these core moves
   const pool=[
-    sm({name:'Power Slam',dmg:[22,30],acc:90,pp:12,maxPp:12,fx:null}),
-    sm({name:'Steady Jab',dmg:[14,20],acc:100,pp:12,maxPp:12,fx:null}),
+    scaledMove({name:'Power Slam',dmg:[22,30],acc:90,pp:12,maxPp:12,fx:null}),
+    scaledMove({name:'Steady Jab',dmg:[14,20],acc:100,pp:12,maxPp:12,fx:null}),
   ];
-  if(waveIdx>=1)pool.push(sm({name:'Life Drain',dmg:[10,15],acc:85,pp:10,maxPp:10,fx:'drain'}));
-  if(waveIdx>=2)pool.push(sm({name:'All-In',dmg:[40,58],acc:58,pp:5,maxPp:5,fx:null}));
-  if(tier>=1)pool.push(sm({name:'Burn Strike',dmg:[16,24],acc:85,pp:10,maxPp:10,fx:'burn'}));
-  if(tier>=2){
-    pool.push(sm({name:'Shock Blast',dmg:[22,30],acc:80,pp:8,maxPp:8,fx:'stun'}));
-    pool.push(sm({name:'Shred',dmg:[20,28],acc:90,pp:10,maxPp:10,fx:'pierce'}));
-  }
-  if(tier>=3)pool.push(sm({name:'Devastate',dmg:[50,70],acc:60,pp:4,maxPp:4,fx:null}));
-  if(tier>=4)pool.push(sm({name:'Oblivion',dmg:[70,95],acc:55,pp:3,maxPp:3,fx:null}));
-  if(tier>=5)pool.push(sm({name:'Annihilation',dmg:[90,125],acc:50,pp:3,maxPp:3,fx:null}));
-  if(cycle>=1)pool.push(sm({name:'MK Overdrive',dmg:[35,50],acc:80,pp:6,maxPp:6,fx:'stun'}));
-  if(cycle>=2)pool.push(sm({name:'MK Barrage',dmg:[25,35],acc:88,pp:8,maxPp:8,fx:'multihit'}));
-  if(cycle>=3)pool.push(sm({name:'MK Destroyer',dmg:[55,80],acc:65,pp:4,maxPp:4,fx:'pierce'}));
 
-  // Move count: 2 base + 1 per 2 waves, max 6
+  // Wave 2+ gets more options
+  if(waveIdx>=1)pool.push(scaledMove({name:'Life Drain',dmg:[10,15],acc:85,pp:10,maxPp:10,fx:'drain'}));
+  if(waveIdx>=2)pool.push(scaledMove({name:'All-In',dmg:[40,58],acc:58,pp:5,maxPp:5,fx:null}));
+  if(tier>=1)pool.push(scaledMove({name:'Burn Strike',dmg:[16,24],acc:85,pp:10,maxPp:10,fx:'burn'}));
+  if(tier>=2){
+    pool.push(scaledMove({name:'Shock Blast',dmg:[22,30],acc:80,pp:8,maxPp:8,fx:'stun'}));
+    pool.push(scaledMove({name:'Shred',dmg:[20,28],acc:90,pp:10,maxPp:10,fx:'pierce'}));
+  }
+  if(tier>=3)pool.push(scaledMove({name:'Devastate',dmg:[50,70],acc:60,pp:4,maxPp:4,fx:null}));
+  if(tier>=4)pool.push(scaledMove({name:'Oblivion',dmg:[70,95],acc:55,pp:3,maxPp:3,fx:null}));
+  if(tier>=5)pool.push(scaledMove({name:'Annihilation',dmg:[90,125],acc:50,pp:3,maxPp:3,fx:null}));
+  if(cycle>=1)pool.push(scaledMove({name:'MK Overdrive',dmg:[35,50],acc:80,pp:6,maxPp:6,fx:'stun'}));
+  if(cycle>=2)pool.push(scaledMove({name:'MK Barrage',dmg:[25,35],acc:88,pp:8,maxPp:8,fx:'multihit'}));
+  if(cycle>=3)pool.push(scaledMove({name:'MK Destroyer',dmg:[55,80],acc:65,pp:4,maxPp:4,fx:'pierce'}));
+
+  // Number of moves: 2 base + 1 per 2 waves, max 6
   const maxMoves=Math.min(6,2+Math.floor(waveIdx/2));
   return pool.slice(0,maxMoves).map(m=>({...m,pp:m.maxPp}));
 }
@@ -647,7 +660,7 @@ function renderAll(){
   document.getElementById('level-top').textContent=G.level;
   document.getElementById('round-lbl').textContent=G.turn;
   document.getElementById('arena-wave').textContent='Wave '+G.wave;
-  const diffNames=['Novice','Easy','Normal','Hard','Expert','Elite','Master','Legendary'];
+  const diffNames=['Novice','Easy','Normal','Hard','Expert','Elite','Master','Legendary','Mythic','Infernal','Apocalypse','Transcendent'];
   const di=clamp(G.wave-1,0,diffNames.length-1);
   document.getElementById('diff-top').textContent=diffNames[di];
   document.getElementById('diff-inline').textContent=diffNames[di];
@@ -678,7 +691,7 @@ function renderFighter(who){
     if(who==='player'&&c.status.stimTurns>0)parts.push('STIM '+c.status.stimTurns+'t');
   }
   if(who==='player'&&c.overload&&c.overloadStacks>0)parts.push('OVL+'+c.overloadStacks);
-  if(who==='ai'&&c.cycle>0)parts.push('MK'+(c.cycle+1));
+  if(who==='ai'&&c.cycle>0)parts.push('MK'+( c.cycle+1));
   if(parts.length){badge.textContent=parts.join(' | ');badge.style.display='inline';}
   else badge.style.display='none';
 }
@@ -738,7 +751,7 @@ function renderTraits(){
 
 function updateWaveInfo(){
   const e=G.ai;
-  const cycleTag=e.cycle>0?' [MK'+(e.cycle+1)+']':'';
+  const cycleTag=e.cycle>0?` [MK${e.cycle+1} — x${e.cycle} cycle boost]`:'';
   document.getElementById('wave-info').innerHTML='<b>'+e.name+'</b>'+cycleTag+'<br>HP: '+e.maxHp+' | ATK: '+e.bAtk+' | DEF: '+e.bDef+'<br>Moves: '+e.moves.length+' | Special: '+(e.special||'none')+'<br>Reward: '+e.reward+' score | '+e.gold+'g';
 }
 
@@ -770,7 +783,7 @@ function showPop(elId,amt,heal){
   const r=el.getBoundingClientRect();
   const d=document.createElement('div');
   d.className='dpop';d.textContent=heal?'+'+amt:'-'+amt;
-  d.style.color=heal?'#000':'#555';
+  d.style.color=heal?'var(--color-text-primary)':'var(--color-text-secondary)';
   d.style.left=(r.left+r.width/2-14+scrollX)+'px';
   d.style.top=(r.top-6+scrollY)+'px';
   document.body.appendChild(d);setTimeout(()=>d.remove(),1150);
@@ -782,10 +795,10 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   const lastStandActive=attKey==='player'&&G.player.lastStand&&G.player.hp/G.player.maxHp<0.2;
   if(mv.pp>0&&!lastStandActive)mv.pp--;
 
-  // mgMult===0 means minigame failed — attack does nothing
+  // mgMult===0 means the minigame was failed (below 50%) — attack misses
   if(attKey==='player'&&mv.dmg&&mv.dmg[0]>0&&mgMult===0){
     setMsg(att.name+' used '+moveName+' — EXECUTION FAILED!');
-    addLog('> '+att.name+': '+moveName+' -> EXECUTION FAILED','miss');
+    addLog('> '+att.name+': '+moveName+' -> EXECUTION FAILED (too few keys)','miss');
     await delay(800);return;
   }
 
@@ -931,7 +944,7 @@ function aiPick(){
   if(G.ai.special==='burn'){const b=avail.find(m=>m.fx==='burn');if(b&&!G.player.status.burn&&Math.random()<0.5)return b.name;}
   if(G.ai.special==='reflect'){const r=avail.find(m=>m.fx==='reflect');if(r&&Math.random()<0.3)return r.name;}
   if(pp<0.3){const big=avail.reduce((a,b)=>b.dmg[1]>a.dmg[1]?b:a);if(Math.random()<0.8)return big.name;}
-  // MK+ enemies pick big moves more aggressively
+  // Higher cycle enemies are more aggressive — prefer high-damage moves more often
   const aggression=Math.min(0.7,0.2+G.ai.cycle*0.15);
   if(Math.random()<aggression){const big=avail.reduce((a,b)=>b.dmg[1]>a.dmg[1]?b:a);return big.name;}
   let r=Math.random()*avail.reduce((s,m)=>s+m.pp,0);
@@ -995,7 +1008,6 @@ const ALL_UPGRADES=[
   {id:'u_ethers',name:'Ethers x2',desc:'Gain 2 Ethers',rarity:'common',apply:G=>{G.items.ether+=2},check:()=>true},
   {id:'u_stims',name:'Stims x2',desc:'Gain 2 Stims',rarity:'common',apply:G=>{G.items.boost+=2},check:()=>true},
   {id:'u_ppup',name:'Extended Reserves',desc:'All move max PP +3',rarity:'common',apply:G=>{G.player.moves.forEach(m=>{m.maxPp+=3;m.pp=Math.min(m.pp+3,m.maxPp)})},check:()=>true},
-  {id:'u_fortifypp',name:'Fortify Uplink',desc:'Fortify gains +3 PP',rarity:'common',apply:G=>{const f=G.player.moves.find(m=>m.id==='fortify');if(f){f.maxPp+=3;f.pp+=3;}},check:G=>!!G.player.moves.find(m=>m.id==='fortify')},
   {id:'u_atk2',name:'Overclock Module',desc:'ATK permanently +6',rarity:'rare',apply:G=>{G.player.bAtk+=6},check:()=>true},
   {id:'u_def2',name:'Reactive Shielding',desc:'DEF +5, reflect 20% damage',rarity:'rare',apply:G=>{G.player.bDef+=5;G.player.reflect20=true},check:()=>true},
   {id:'u_vamp',name:'Vampiric Rounds',desc:'Attacks restore 15% dmg as HP',rarity:'rare',apply:G=>{G.player.vamp=true},check:G=>!G.player.vamp},
@@ -1053,14 +1065,13 @@ function showStatUpgrade(onDone){
   sec.style.display='block';grid.innerHTML='';
   G.player.maxHp+=25;G.player.hp=Math.min(G.player.hp+25,G.player.maxHp);
   G.player.bAtk+=2;G.player.bDef+=2;G.player.spd+=1;
-  addLog('> Leveled Up');
   const stats=[
-    {label:'ATK +2',apply:()=>{G.player.bAtk+=2;addLog('> Stat point: ATK +2','proj');}},
-    {label:'DEF +2',apply:()=>{G.player.bDef+=2;addLog('> Stat point: DEF +2','proj');}},
-    {label:'SPD +1',apply:()=>{G.player.spd+=1;addLog('> Stat point: SPD +1','proj');}},
-    {label:'HP +20',apply:()=>{G.player.maxHp+=20;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp);addLog('> Stat point: HP +20','proj');}},
-    {label:'CRIT +5%',apply:()=>{G.player.critBonus=(G.player.critBonus||0)+5;addLog('> Stat point: CRIT +5%','proj');}},
-    {label:'EVADE +5%',apply:()=>{G.player.evadeBonus=(G.player.evadeBonus||0)+5;addLog('> Stat point: EVADE +5%','proj');}},
+    {label:'ATK +2',apply:()=>{G.player.bAtk+=2;addLog('> Stat: ATK +2','proj');}},
+    {label:'DEF +2',apply:()=>{G.player.bDef+=2;addLog('> Stat: DEF +2','proj');}},
+    {label:'SPD +1',apply:()=>{G.player.spd+=1;addLog('> Stat: SPD +1','proj');}},
+    {label:'HP +20',apply:()=>{G.player.maxHp+=20;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp);addLog('> Stat: HP +20','proj');}},
+    {label:'CRIT +5%',apply:()=>{G.player.critBonus=(G.player.critBonus||0)+5;addLog('> Stat: CRIT +5%','proj');}},
+    {label:'EVADE +5%',apply:()=>{G.player.evadeBonus=(G.player.evadeBonus||0)+5;addLog('> Stat: EVADE +5%','proj');}},
   ];
   stats.forEach(s=>{
     const btn=document.createElement('button');
@@ -1114,7 +1125,7 @@ function endBattle(winner){
       const pool=TRAITS.filter(t=>!G.traits.find(x=>x.id===t.id));
       if(pool.length){
         const t=pool[rnd(0,pool.length-1)];
-        const card=document.createElement('div');card.className='upgrade-card';card.style.cssText='width:160px;border:2px solid #000';
+        const card=document.createElement('div');card.className='upgrade-card';card.style.cssText='width:160px;border:2px solid var(--color-border-primary)';
         card.innerHTML='<div class="utitle">'+t.name+'</div><div class="urarity" style="font-style:italic">[passive trait]</div><div class="udesc">'+t.desc+'</div><button style="width:100%;margin-top:3px">Unlock</button>';
         card.querySelector('button').addEventListener('click',()=>{
           G.traits.push(t);upDiv.style.display='none';addLog('> Trait: '+t.name,'proj');upgradeChosen=true;showStatUpgrade(checkBothChosen);
