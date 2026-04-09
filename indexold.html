@@ -77,8 +77,6 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
 .radar-legend{display:flex;gap:10px;font-size:10px;font-family:'Courier New',monospace;justify-content:center;margin-top:4px}
 .legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:middle}
 .stat-up-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:4px}
-
-/* SHOP — matches .arena styling exactly */
 .shop-section{border:1px solid #000;padding:5px 7px}
 .shop-hdr{display:flex;justify-content:space-between;font-size:10px;color:#666;margin-bottom:3px}
 .shop-title{font-size:10px;color:#666}
@@ -90,16 +88,15 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
 .shop-item-name{font-size:11px;font-weight:bold;display:block}
 .shop-item-cost{font-size:10px;font-family:'Courier New',monospace;color:#666;display:block}
 .shop-empty{font-size:10px;color:#aaa;font-style:italic;text-align:center;padding:4px;grid-column:1/-1}
-
-/* MINIGAME OVERLAY */
 #minigame-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:8000;align-items:center;justify-content:center;flex-direction:column}
 #minigame-overlay.active{display:flex}
-.mg-box{background:#fff;border:2px solid #000;padding:14px 20px;min-width:300px;text-align:center;max-width:400px}
+.mg-box{background:#fff;border:2px solid #000;padding:14px 20px;min-width:300px;text-align:center;max-width:420px}
 .mg-title{font-weight:bold;font-size:14px;margin-bottom:4px}
-.mg-move{font-size:12px;color:#555;margin-bottom:8px}
+.mg-move{font-size:12px;color:#555;margin-bottom:4px}
+.mg-threshold{font-size:10px;color:#999;margin-bottom:6px}
 .mg-timer-bar-wrap{background:#eee;border:1px solid #aaa;height:8px;margin-bottom:10px;overflow:hidden}
 .mg-timer-bar{height:100%;background:#000;transition:width 0.05s linear}
-.mg-keys-row{display:flex;gap:10px;justify-content:center;margin-bottom:8px;flex-wrap:wrap}
+.mg-keys-row{display:flex;gap:8px;justify-content:center;margin-bottom:8px;flex-wrap:wrap}
 .mg-key{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:2px solid #000;font-size:18px;font-weight:bold;background:#fff;transition:background 0.1s,border-color 0.1s;user-select:none}
 .mg-key.hit{background:#000;color:#fff;border-color:#000}
 .mg-key.miss{background:#ddd;color:#999;border-color:#aaa}
@@ -267,12 +264,12 @@ hr.thin{border:none;border-top:1px solid #ccc;margin:4px 0}
   </div>
 </div>
 
-<!-- MINIGAME OVERLAY -->
 <div id="minigame-overlay">
   <div class="mg-box">
     <div class="mg-title" id="mg-title">EXECUTE MOVE</div>
     <div class="mg-move" id="mg-move-name"></div>
-    <div class="mg-progress" id="mg-progress">Key 1 / 4</div>
+    <div class="mg-threshold" id="mg-threshold">Need 50%+ keys to hit</div>
+    <div class="mg-progress" id="mg-progress">Key 1 / 5</div>
     <div class="mg-timer-bar-wrap"><div class="mg-timer-bar" id="mg-timer-bar" style="width:100%"></div></div>
     <div class="mg-keys-row" id="mg-keys-row"></div>
     <div class="mg-result" id="mg-result"></div>
@@ -286,43 +283,37 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 
-// Arrow key config
 const ARROW_KEYS=[
-  {key:'ArrowUp',    label:'↑'},
-  {key:'ArrowDown',  label:'↓'},
-  {key:'ArrowLeft',  label:'←'},
-  {key:'ArrowRight', label:'→'},
+  {key:'ArrowUp',label:'↑'},
+  {key:'ArrowDown',label:'↓'},
+  {key:'ArrowLeft',label:'←'},
+  {key:'ArrowRight',label:'→'},
 ];
 
 function genArrowSeq(len){
   const seq=[];
   for(let i=0;i<len;i++){
     let k;
-    do{ k=ARROW_KEYS[rnd(0,3)]; }while(seq.length>0&&k.key===seq[seq.length-1].key);
+    do{k=ARROW_KEYS[rnd(0,3)];}while(seq.length>0&&k.key===seq[seq.length-1].key);
     seq.push(k);
   }
   return seq;
 }
 
-// Enemy names with MK cycling
 const ENEMY_BASE_NAMES=['Beta','Gamma','Delta','Epsilon','Omega','Nemesis','Titan','Singularity'];
 function getEnemyName(waveIdx){
   const base=ENEMY_BASE_NAMES[waveIdx%ENEMY_BASE_NAMES.length];
   const cycle=Math.floor(waveIdx/ENEMY_BASE_NAMES.length);
-  return'Unit '+base+(cycle>0?' MK'+(cycle+1):'');
+  return 'Unit '+base+(cycle>0?' MK'+(cycle+1):'');
 }
 
-// Shop — only consumables
 const SHOP_CATALOG=[
-  {id:'s_heal', name:'Medpack',  desc:'Restore 35HP',        cost:60,  apply:G=>{G.items.heal+=1;}},
-  {id:'s_ether',name:'Ether',    desc:'Restore all PP',       cost:90,  apply:G=>{G.items.ether+=1;}},
-  {id:'s_boost',name:'Stim',     desc:'ATK +40% for 3 turns', cost:80,  apply:G=>{G.items.boost+=1;}},
+  {id:'s_heal',name:'Medpack',desc:'Restore 35HP',cost:60,apply:G=>{G.items.heal+=1;}},
+  {id:'s_ether',name:'Ether',desc:'Restore all PP',cost:90,apply:G=>{G.items.ether+=1;}},
+  {id:'s_boost',name:'Stim',desc:'ATK +40% for 3 turns',cost:80,apply:G=>{G.items.boost+=1;}},
 ];
 
-function rollShop(){
-  // Each item independently 50% chance, stacks with wave
-  return SHOP_CATALOG.filter(()=>Math.random()<0.5);
-}
+function rollShop(){return SHOP_CATALOG.filter(()=>Math.random()<0.5);}
 
 function renderShop(){
   const grid=document.getElementById('shop-grid');
@@ -341,9 +332,7 @@ function renderShop(){
     btn.innerHTML=`<span class="shop-item-name">${item.name}</span><span class="shop-item-cost">${item.cost}g</span>`;
     btn.addEventListener('click',()=>{
       if(G.gold<item.cost||G.busy)return;
-      G.gold-=item.cost;
-      item.apply(G);
-      G.shop.splice(i,1);
+      G.gold-=item.cost;item.apply(G);G.shop.splice(i,1);
       addLog(`> Shop: bought ${item.name} (-${item.cost}g)`,'proj');
       renderShop();renderAll();
     });
@@ -351,16 +340,15 @@ function renderShop(){
   });
 }
 
-// Minigame
 let mgResolve=null,mgActive=false,mgAnimFrame=null;
 
 function runMinigame(moveName,tier){
   return new Promise(resolve=>{
     mgResolve=resolve;mgActive=true;
-    // 4 keys base, +1 per tier, max 8
-    const numKeys=clamp(4+tier,4,8);
-    // time per key: 1400ms base, -100ms per tier, min 600ms
-    const timePerKey=Math.max(600,1400-tier*100);
+    // 5 keys base, +1 per tier, max 12
+    const numKeys=clamp(5+tier,5,12);
+    // time per key: 1400ms base, -100ms per tier, min 500ms
+    const timePerKey=Math.max(300,1000-tier*100);
     const seq=genArrowSeq(numKeys);
     let idx=0,hits=0;
 
@@ -368,6 +356,8 @@ function runMinigame(moveName,tier){
     document.getElementById('mg-result').textContent='';
     document.getElementById('mg-hint').textContent='Press the highlighted arrow key!';
     document.getElementById('mg-progress').textContent='Key 1 / '+numKeys;
+    const needed=Math.ceil(numKeys/2);
+    document.getElementById('mg-threshold').textContent='Need '+needed+'/'+numKeys+' to hit';
 
     const keysRow=document.getElementById('mg-keys-row');
     keysRow.innerHTML='';
@@ -388,10 +378,7 @@ function runMinigame(moveName,tier){
       const elapsed=performance.now()-keyStart;
       const pct=Math.max(0,1-elapsed/timePerKey);
       bar.style.width=(pct*100).toFixed(1)+'%';
-      if(elapsed>timePerKey){
-        keyEls[idx].className='mg-key miss';
-        advance();return;
-      }
+      if(elapsed>timePerKey){keyEls[idx].className='mg-key miss';advance();return;}
       mgAnimFrame=requestAnimationFrame(tick);
     }
 
@@ -410,11 +397,13 @@ function runMinigame(moveName,tier){
       bar.style.width='0%';
       const ratio=hits/numKeys;
       let grade,mult;
-      if(ratio>=0.85){grade='PERFECT';mult=1.5;}
-      else if(ratio>=0.6){grade='GOOD';mult=1.2;}
-      else if(ratio>=0.35){grade='OK';mult=1.0;}
-      else{grade='MISS';mult=0.6;}
-      document.getElementById('mg-result').textContent=grade+'  '+hits+'/'+numKeys+' keys  \xd7'+mult.toFixed(1)+' DMG';
+      if(ratio<0.5){grade='MISS';mult=0;}
+      else if(ratio>=0.85){grade='PERFECT';mult=1.5;}
+      else if(ratio>=0.7){grade='GREAT';mult=1.25;}
+      else if(ratio>=0.6){grade='GOOD';mult=1.1;}
+      else{grade='OK';mult=1.0;}
+      document.getElementById('mg-result').textContent=
+        grade+'  '+hits+'/'+numKeys+' keys  '+(mult===0?'— ATTACK FAILS':'\xd7'+mult.toFixed(2)+' DMG');
       document.getElementById('mg-hint').textContent='';
       document.removeEventListener('keydown',onKey);
       setTimeout(()=>{
@@ -429,15 +418,11 @@ function runMinigame(moveName,tier){
       if(!arrows.includes(e.key))return;
       e.preventDefault();
       if(e.key===seq[idx].key){
-        keyEls[idx].className='mg-key hit';
-        hits++;
-        cancelAnimationFrame(mgAnimFrame);
-        setTimeout(advance,70);
+        keyEls[idx].className='mg-key hit';hits++;
+        cancelAnimationFrame(mgAnimFrame);setTimeout(advance,70);
       }else{
-        // wrong key — flash miss and count as miss, move on
         keyEls[idx].className='mg-key miss';
-        cancelAnimationFrame(mgAnimFrame);
-        setTimeout(advance,70);
+        cancelAnimationFrame(mgAnimFrame);setTimeout(advance,70);
       }
     }
     document.addEventListener('keydown',onKey);
@@ -445,7 +430,6 @@ function runMinigame(moveName,tier){
   });
 }
 
-// Core data
 const BASE_PMOVES=[
   {id:'quick',name:'Quick Strike',dmg:[18,26],acc:95,pp:15,maxPp:15,desc:'PWR 22 | ACC 95',fx:null,tier:0},
   {id:'heavy',name:'Heavy Blow',dmg:[28,38],acc:75,pp:10,maxPp:10,desc:'PWR 33 | ACC 75',fx:null,tier:0},
@@ -463,123 +447,77 @@ const BASE_PMOVES=[
   {id:'reflect',name:'Nullify',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'Negate next attack | T3',fx:'reflect',tier:3},
 ];
 
+// Base enemy pools — MK cycling scales these multiplicatively
 const ENEMY_POOLS=[
   {hp:120,atk:11,def:9, spd:8, special:null,      reward:120,gold:40},
   {hp:145,atk:13,def:11,spd:9, special:'drain',    reward:200,gold:55},
-  {hp:160,atk:16,def:12,spd:11,special:'burn',     reward:280,gold:70},
-  {hp:180,atk:18,def:14,spd:12,special:'highcrit', reward:370,gold:90},
-  {hp:220,atk:22,def:16,spd:14,special:'reflect',  reward:500,gold:110},
-  {hp:270,atk:26,def:18,spd:16,special:'stun',     reward:700,gold:140},
-  {hp:340,atk:32,def:22,spd:18,special:'multihit', reward:1000,gold:180},
-  {hp:420,atk:40,def:26,spd:20,special:'pierce',   reward:1400,gold:220},
+  {hp:165,atk:16,def:12,spd:11,special:'burn',     reward:280,gold:70},
+  {hp:190,atk:19,def:14,spd:12,special:'highcrit', reward:370,gold:90},
+  {hp:230,atk:23,def:17,spd:14,special:'reflect',  reward:500,gold:110},
+  {hp:285,atk:28,def:20,spd:16,special:'stun',     reward:700,gold:140},
+  {hp:360,atk:35,def:25,spd:18,special:'multihit', reward:1000,gold:180},
+  {hp:460,atk:44,def:30,spd:20,special:'pierce',   reward:1400,gold:220},
 ];
-
-const ALL_UPGRADES=[
-  {id:'u_atk1',name:'Targeting Module',desc:'ATK permanently +3',rarity:'common',apply:G=>{G.player.bAtk+=3},check:()=>true},
-  {id:'u_def1',name:'Armor Plating',desc:'DEF permanently +3',rarity:'common',apply:G=>{G.player.bDef+=3},check:()=>true},
-  {id:'u_spd1',name:'Speed Boosters',desc:'SPD +2',rarity:'common',apply:G=>{G.player.spd+=2},check:()=>true},
-  {id:'u_crit1',name:'Precision Core',desc:'Crit chance +8%',rarity:'common',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+8},check:()=>true},
-  {id:'u_evade1',name:'Evasion Matrix',desc:'Dodge chance +7%',rarity:'common',apply:G=>{G.player.evadeBonus=(G.player.evadeBonus||0)+7},check:()=>true},
-  {id:'u_hp1',name:'Reinforced Frame',desc:'Max HP +35',rarity:'common',apply:G=>{G.player.maxHp+=35;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp)},check:()=>true},
-  {id:'u_medpacks',name:'Medpacks x2',desc:'Gain 2 Medpacks',rarity:'common',apply:G=>{G.items.heal+=2},check:()=>true},
-  {id:'u_ethers',name:'Ethers x2',desc:'Gain 2 Ethers',rarity:'common',apply:G=>{G.items.ether+=2},check:()=>true},
-  {id:'u_stims',name:'Stims x2',desc:'Gain 2 Stims',rarity:'common',apply:G=>{G.items.boost+=2},check:()=>true},
-  {id:'u_ppup',name:'Extended Reserves',desc:'All move max PP +3',rarity:'common',apply:G=>{G.player.moves.forEach(m=>{m.maxPp+=3;m.pp=Math.min(m.pp+3,m.maxPp)})},check:()=>true},
-  {id:'u_fortifypp',name:'Fortify Uplink',desc:'Fortify gains +3 PP',rarity:'common',apply:G=>{const f=G.player.moves.find(m=>m.id==='fortify');if(f){f.maxPp+=3;f.pp+=3;}},check:G=>!!G.player.moves.find(m=>m.id==='fortify')},
-  {id:'u_atk2',name:'Overclock Module',desc:'ATK permanently +6',rarity:'rare',apply:G=>{G.player.bAtk+=6},check:()=>true},
-  {id:'u_def2',name:'Reactive Shielding',desc:'DEF +5, reflect 20% damage',rarity:'rare',apply:G=>{G.player.bDef+=5;G.player.reflect20=true},check:()=>true},
-  {id:'u_vamp',name:'Vampiric Rounds',desc:'Attacks restore 15% dmg as HP',rarity:'rare',apply:G=>{G.player.vamp=true},check:()=>true},
-  {id:'u_doublepp',name:'Overclocked Reserves',desc:'All move PP doubled',rarity:'rare',apply:G=>{G.player.moves.forEach(m=>{m.maxPp*=2;m.pp=m.maxPp})},check:()=>true},
-  {id:'u_crit2',name:'Lethal Configuration',desc:'Crit +15%, crit mult 2.0x',rarity:'rare',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+15;G.player.critMult=2.0},check:()=>true},
-  {id:'u_berserker',name:'Berserker Protocol',desc:'Below 30% HP: ATK doubles',rarity:'rare',apply:G=>{G.player.berserk=true},check:G=>!G.player.berserk},
-  {id:'u_counteratk',name:'Counter-Strike',desc:'When hit 20+dmg, retaliate 8',rarity:'rare',apply:G=>{G.player.counter=true},check:G=>!G.player.counter},
-  {id:'u_burnimmune',name:'Heat Sink',desc:'Immune to Burn',rarity:'rare',apply:G=>{G.player.burnImmune=true},check:G=>!G.player.burnImmune},
-  {id:'u_stunimmune',name:'Iron Will',desc:'Immune to Stun',rarity:'rare',apply:G=>{G.player.stunImmune=true},check:G=>!G.player.stunImmune},
-  {id:'u_executioner',name:'Executioner',desc:'Attacks on <25% HP deal +60%',rarity:'rare',apply:G=>{G.player.execute=true},check:G=>!G.player.execute},
-  {id:'u_laststand',name:'Last Stand',desc:'Below 20% HP: 0 PP cost',rarity:'rare',apply:G=>{G.player.lastStand=true},check:G=>!G.player.lastStand},
-  {id:'u_allstats',name:'Hyper Calibration',desc:'ATK, DEF, SPD all +4',rarity:'epic',apply:G=>{G.player.bAtk+=4;G.player.bDef+=4;G.player.spd+=4},check:()=>true},
-  {id:'u_phoenix',name:'Phoenix Protocol',desc:'Survive fatal blow at 1 HP',rarity:'epic',apply:G=>{G.player.phoenix=true},check:G=>!G.player.phoenix},
-  {id:'u_omni',name:'Omni-Matrix',desc:'Crit+10%, Evade+10%, Vamp, Reflect',rarity:'epic',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+10;G.player.evadeBonus=(G.player.evadeBonus||0)+10;G.player.vamp=true;G.player.reflect10=true},check:()=>true},
-  {id:'u_warmaster',name:'War Master',desc:'ATK+8, DEF+4, unlock Annihilate',rarity:'epic',apply:G=>{G.player.bAtk+=8;G.player.bDef+=4;if(!G.player.moves.find(m=>m.id==='nuke')&&G.player.moves.length<6){const m=BASE_PMOVES.find(x=>x.id==='nuke');if(m)G.player.moves.push({...m,pp:m.maxPp});}},check:()=>true},
-  {id:'u_overload',name:'Overload Core',desc:'+2 ATK per undamaged turn',rarity:'epic',apply:G=>{G.player.overload=true;G.player.overloadStacks=0},check:G=>!G.player.overload},
-];
-
-const TRAITS=[
-  {id:'t_tough',name:'Unyielding',desc:'+5 DEF passively'},
-  {id:'t_swift',name:'Overclocked',desc:'Always acts first if SPD tied'},
-  {id:'t_tactician',name:'Tactician',desc:'Earn +50% score per battle'},
-  {id:'t_ironwill',name:'Iron Will',desc:'Cannot be stunned'},
-  {id:'t_medic',name:'Field Medic',desc:'Medpacks restore +15 extra HP'},
-  {id:'t_momentum',name:'Momentum',desc:'Each consecutive damaging move +5% damage'},
-];
-
-let G={};
-let radarChart=null;
-
-function initGame(){
-  G={
-    wave:1,turn:1,phase:'player',busy:false,
-    score:0,waveScore:0,level:1,exp:0,expNext:100,
-    gold:50,
-    items:{heal:1,ether:0,boost:0},
-    shop:rollShop(),
-    traits:[],chainCount:0,momentumCount:0,
-    player:{
-      name:'Unit Alpha',maxHp:120,hp:120,
-      bAtk:10,bDef:10,spd:9,
-      atkBuf:0,defBuf:0,
-      critBonus:0,evadeBonus:0,critMult:1.5,
-      vamp:false,reflect20:false,reflect10:false,berserk:false,
-      phoenix:false,phoenixUsed:false,execute:false,counter:false,
-      burnImmune:false,stunImmune:false,lastStand:false,
-      overload:false,overloadStacks:0,
-      moves:['quick','heavy','fortify','barrage'].map(id=>getMoveById(id)),
-      status:{burn:0,stun:0,regen:0,reflect:0,stimTurns:0},
-    },
-    ai:buildEnemy(0),
-    appliedUpgrades:[],
-  };
-  document.getElementById('resultbox').classList.remove('show');
-  document.getElementById('main-layout').style.display='';
-  clearLog();renderAll();renderShop();
-  setMsg('What will Unit Alpha do?',true);
-  setMovesEnabled(true);renderTraits();updateWaveInfo();updateProbTable();updateRadar();
-}
-
-function getMoveById(id){
-  const m=BASE_PMOVES.find(x=>x.id===id);
-  return m?{...m,pp:m.maxPp}:null;
-}
 
 function buildEnemy(waveIdx){
-  const idx=waveIdx%ENEMY_POOLS.length;
-  const e=ENEMY_POOLS[idx];
-  const scale=1+waveIdx*0.08;
+  const poolIdx=waveIdx%ENEMY_POOLS.length;
+  const e=ENEMY_POOLS[poolIdx];
+  const cycle=Math.floor(waveIdx/ENEMY_POOLS.length);
+  // Per-cycle multiplicative scaling — each MK cycle is a meaningful step up
+  const hpScale=Math.pow(1.30,cycle);
+  const atkScale=Math.pow(1.25,cycle);
+  const defScale=Math.pow(1.20,cycle);
+  const rewardScale=Math.pow(1.10,cycle);
+  const withinScale=1+poolIdx*0.08;
   return{
     name:getEnemyName(waveIdx),
-    maxHp:Math.round(e.hp*scale),hp:Math.round(e.hp*scale),
-    bAtk:Math.round(e.atk*scale),bDef:Math.round(e.def*scale),spd:e.spd,
+    maxHp:Math.round(e.hp*hpScale*withinScale),
+    hp:Math.round(e.hp*hpScale*withinScale),
+    bAtk:Math.round(e.atk*atkScale*withinScale),
+    bDef:Math.round(e.def*defScale*withinScale),
+    spd:e.spd+cycle,
     atkBuf:0,defBuf:0,
     status:{burn:0,stun:0,regen:0,reflect:0},
-    special:e.special,reward:e.reward,
-    gold:Math.round(e.gold*(1+waveIdx*0.05)),
+    special:e.special,
+    reward:Math.round(e.reward*rewardScale*(1+poolIdx*0.05)),
+    gold:Math.round(e.gold*rewardScale*(1+poolIdx*0.05)),
     moves:buildAIMoves(waveIdx),
+    cycle:cycle,
+    waveIdx:waveIdx,
   };
 }
 
 function buildAIMoves(waveIdx){
   const tier=Math.floor(waveIdx/2);
+  const cycle=Math.floor(waveIdx/ENEMY_POOLS.length);
+  // Damage scales with both wave progression and MK cycle
+  const dmgScale=1+waveIdx*0.12+cycle*0.15;
+
+  function sm(m){
+    return{...m,dmg:[Math.round(m.dmg[0]*dmgScale),Math.round(m.dmg[1]*dmgScale)],pp:m.maxPp};
+  }
+
   const pool=[
-    {name:'Power Slam',dmg:[22,30],acc:90,pp:12,maxPp:12,fx:null},
-    {name:'Steady Jab',dmg:[14,20],acc:100,pp:12,maxPp:12,fx:null},
-    {name:'Life Drain',dmg:[10,15],acc:85,pp:10,maxPp:10,fx:'drain'},
-    {name:'All-In',dmg:[40,58],acc:58,pp:5,maxPp:5,fx:null},
+    sm({name:'Power Slam',dmg:[22,30],acc:90,pp:12,maxPp:12,fx:null}),
+    sm({name:'Steady Jab',dmg:[14,20],acc:100,pp:12,maxPp:12,fx:null}),
   ];
-  if(tier>=1)pool.push({name:'Burn Strike',dmg:[16,24],acc:85,pp:10,maxPp:10,fx:'burn'});
-  if(tier>=2)pool.push({name:'Shock Blast',dmg:[22,30],acc:80,pp:8,maxPp:8,fx:'stun'},{name:'Shred',dmg:[20,28],acc:90,pp:10,maxPp:10,fx:'pierce'});
-  if(tier>=3)pool.push({name:'Devastate',dmg:[50,70],acc:60,pp:4,maxPp:4,fx:null});
-  if(tier>=4)pool.push({name:'Oblivion',dmg:[70,95],acc:55,pp:3,maxPp:3,fx:null});
-  return pool.slice(0,4).map(m=>({...m,pp:m.maxPp}));
+  if(waveIdx>=1)pool.push(sm({name:'Life Drain',dmg:[10,15],acc:85,pp:10,maxPp:10,fx:'drain'}));
+  if(waveIdx>=2)pool.push(sm({name:'All-In',dmg:[40,58],acc:58,pp:5,maxPp:5,fx:null}));
+  if(tier>=1)pool.push(sm({name:'Burn Strike',dmg:[16,24],acc:85,pp:10,maxPp:10,fx:'burn'}));
+  if(tier>=2){
+    pool.push(sm({name:'Shock Blast',dmg:[22,30],acc:80,pp:8,maxPp:8,fx:'stun'}));
+    pool.push(sm({name:'Shred',dmg:[20,28],acc:90,pp:10,maxPp:10,fx:'pierce'}));
+  }
+  if(tier>=3)pool.push(sm({name:'Devastate',dmg:[50,70],acc:60,pp:4,maxPp:4,fx:null}));
+  if(tier>=4)pool.push(sm({name:'Oblivion',dmg:[70,95],acc:55,pp:3,maxPp:3,fx:null}));
+  if(tier>=5)pool.push(sm({name:'Annihilation',dmg:[90,125],acc:50,pp:3,maxPp:3,fx:null}));
+  if(cycle>=1)pool.push(sm({name:'MK Overdrive',dmg:[35,50],acc:80,pp:6,maxPp:6,fx:'stun'}));
+  if(cycle>=2)pool.push(sm({name:'MK Barrage',dmg:[25,35],acc:88,pp:8,maxPp:8,fx:'multihit'}));
+  if(cycle>=3)pool.push(sm({name:'MK Destroyer',dmg:[55,80],acc:65,pp:4,maxPp:4,fx:'pierce'}));
+
+  // Move count: 2 base + 1 per 2 waves, max 6
+  const maxMoves=Math.min(6,2+Math.floor(waveIdx/2));
+  return pool.slice(0,maxMoves).map(m=>({...m,pp:m.maxPp}));
 }
 
 const getAtk=c=>{
@@ -621,13 +559,16 @@ function expectedDmg(att,def,mv){
 }
 
 function getRadarData(){
-  const maxStat=40;const p=G.player,a=G.ai;
+  const maxStat=50;const p=G.player,a=G.ai;
   const norm=(v,max)=>Math.min(100,Math.round(v/max*100));
   return{
     player:[norm(getAtk(p),maxStat),norm(getDef(p),maxStat),norm(p.spd,25),norm(getCrit(p),50),norm(getEvade(p),40),norm(p.hp/p.maxHp*100,100)],
     ai:[norm(getAtk(a),maxStat),norm(getDef(a),maxStat),norm(a.spd,25),norm(10,50),norm(5,40),norm(a.hp/a.maxHp*100,100)],
   };
 }
+
+let G={};
+let radarChart=null;
 
 function updateRadar(){
   const d=getRadarData();
@@ -654,6 +595,41 @@ function updateRadar(){
     radarChart.data.datasets[1].data=d.ai;
     radarChart.update('none');
   }
+}
+
+function initGame(){
+  G={
+    wave:1,turn:1,phase:'player',busy:false,
+    score:0,waveScore:0,level:1,exp:0,expNext:100,
+    gold:50,
+    items:{heal:1,ether:0,boost:0},
+    shop:rollShop(),
+    traits:[],chainCount:0,momentumCount:0,
+    player:{
+      name:'Unit Alpha',maxHp:120,hp:120,
+      bAtk:10,bDef:10,spd:9,
+      atkBuf:0,defBuf:0,
+      critBonus:0,evadeBonus:0,critMult:1.5,
+      vamp:false,reflect20:false,reflect10:false,berserk:false,
+      phoenix:false,phoenixUsed:false,execute:false,counter:false,
+      burnImmune:false,stunImmune:false,lastStand:false,
+      overload:false,overloadStacks:0,
+      moves:['quick','heavy','fortify','barrage'].map(id=>getMoveById(id)),
+      status:{burn:0,stun:0,regen:0,reflect:0,stimTurns:0},
+    },
+    ai:buildEnemy(0),
+    appliedUpgrades:[],
+  };
+  document.getElementById('resultbox').classList.remove('show');
+  document.getElementById('main-layout').style.display='';
+  clearLog();renderAll();renderShop();
+  setMsg('What will Unit Alpha do?',true);
+  setMovesEnabled(true);renderTraits();updateWaveInfo();updateProbTable();updateRadar();
+}
+
+function getMoveById(id){
+  const m=BASE_PMOVES.find(x=>x.id===id);
+  return m?{...m,pp:m.maxPp}:null;
 }
 
 function renderAll(){
@@ -702,6 +678,7 @@ function renderFighter(who){
     if(who==='player'&&c.status.stimTurns>0)parts.push('STIM '+c.status.stimTurns+'t');
   }
   if(who==='player'&&c.overload&&c.overloadStacks>0)parts.push('OVL+'+c.overloadStacks);
+  if(who==='ai'&&c.cycle>0)parts.push('MK'+(c.cycle+1));
   if(parts.length){badge.textContent=parts.join(' | ');badge.style.display='inline';}
   else badge.style.display='none';
 }
@@ -761,7 +738,8 @@ function renderTraits(){
 
 function updateWaveInfo(){
   const e=G.ai;
-  document.getElementById('wave-info').innerHTML='<b>'+e.name+'</b><br>HP: '+e.maxHp+' | ATK: '+e.bAtk+' | DEF: '+e.bDef+'<br>Special: '+(e.special||'none')+'<br>Reward: '+e.reward+' score | '+e.gold+'g';
+  const cycleTag=e.cycle>0?' [MK'+(e.cycle+1)+']':'';
+  document.getElementById('wave-info').innerHTML='<b>'+e.name+'</b>'+cycleTag+'<br>HP: '+e.maxHp+' | ATK: '+e.bAtk+' | DEF: '+e.bDef+'<br>Moves: '+e.moves.length+' | Special: '+(e.special||'none')+'<br>Reward: '+e.reward+' score | '+e.gold+'g';
 }
 
 function setMsg(txt,cur=false){
@@ -804,10 +782,17 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   const lastStandActive=attKey==='player'&&G.player.lastStand&&G.player.hp/G.player.maxHp<0.2;
   if(mv.pp>0&&!lastStandActive)mv.pp--;
 
+  // mgMult===0 means minigame failed — attack does nothing
+  if(attKey==='player'&&mv.dmg&&mv.dmg[0]>0&&mgMult===0){
+    setMsg(att.name+' used '+moveName+' — EXECUTION FAILED!');
+    addLog('> '+att.name+': '+moveName+' -> EXECUTION FAILED','miss');
+    await delay(800);return;
+  }
+
   if(def.status&&def.status.reflect>0&&mv.dmg&&mv.dmg[0]>0){
     def.status.reflect=0;setMsg(att.name+' used '+moveName+' — REFLECTED!');
     addLog('> '+att.name+': '+moveName+' -> REFLECTED','debuff');
-    const{dmg}=calcDmg(att,att,mv,false,mgMult);
+    const{dmg}=calcDmg(att,att,mv,false,mgMult||1.0);
     att.hp=Math.max(0,att.hp-dmg);showPop(attKey+'-fill',dmg,false);renderFighter(attKey);
     await delay(900);return;
   }
@@ -833,7 +818,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     const hits=rnd(2,3);let total=0;
     setMsg(att.name+' used '+moveName+'!');await delay(280);
     for(let i=0;i<hits;i++){
-      const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);
+      const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
       def.hp-=dmg;total+=dmg;
       if(att.vamp){const h=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+h);}
       checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
@@ -844,7 +829,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     gainExpScore(total,attKey);if(attKey==='player')G.momentumCount=(G.momentumCount||0)+1;return;
   }
   if(mv.fx==='drain'){
-    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);
+    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
     def.hp-=dmg;const heal=Math.round(dmg*0.5);att.hp=Math.min(att.maxHp,att.hp+heal);
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);showPop(attKey+'-fill',heal,true);
     setMsg(att.name+': '+moveName+'. Drained '+dmg+'! +'+heal+'HP.'+(crit?' Crit!':''));
@@ -853,7 +838,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     if(attKey==='player')G.momentumCount=(G.momentumCount||0)+1;await delay(900);return;
   }
   if(mv.fx==='burn'){
-    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);def.hp-=dmg;
+    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     if(!(defKey==='player'&&G.player.burnImmune))def.status.burn=3;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. '+def.name+' '+(def.status.burn?'is burning!':'resisted burn!')+(crit?' Crit!':''));
@@ -861,7 +846,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount=(G.momentumCount||0)+1;await delay(900);return;
   }
   if(mv.fx==='stun'){
-    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);def.hp-=dmg;
+    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     const immune=defKey==='player'&&(G.player.stunImmune||G.traits.find(t=>t.id==='t_ironwill'));
     if(!immune&&Math.random()<0.4)def.status.stun=1;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
@@ -870,7 +855,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount=(G.momentumCount||0)+1;await delay(900);return;
   }
   if(mv.fx==='pierce'){
-    const{dmg,crit}=calcDmg(att,def,mv,true,mgMult);def.hp-=dmg;
+    const{dmg,crit}=calcDmg(att,def,mv,true,mgMult||1.0);def.hp-=dmg;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. Pierced DEF! '+dmg+'dmg!'+(crit?' Crit!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg (PIERCE)'+(crit?' CRIT':''),crit?'crit':'hit');
@@ -878,7 +863,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
   if(mv.fx==='highcrit'){
     const saved=G.player.critBonus;G.player.critBonus=(G.player.critBonus||0)+30;
-    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);G.player.critBonus=saved;
+    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);G.player.critBonus=saved;
     def.hp-=dmg;if(att.vamp){const h=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+h);}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+' — '+dmg+'dmg!'+(crit?' CRITICAL HIT!':''));
@@ -888,14 +873,14 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   if(mv.fx==='chain'){
     G.chainCount=(G.chainCount||0)+1;
     const saved=att.bAtk;att.bAtk+=G.chainCount*2;
-    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);att.bAtk=saved;
+    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);att.bAtk=saved;
     def.hp-=dmg;if(att.vamp){const h=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+h);}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+' — Chain x'+G.chainCount+'! '+dmg+'dmg!'+(crit?' Crit!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg [chain x'+G.chainCount+']'+(crit?' CRIT':''),crit?'crit':'hit');
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount=(G.momentumCount||0)+1;await delay(900);return;
   }
-  const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);
+  const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
   def.hp-=dmg;
   if(att.vamp){const h=Math.round(dmg*0.15);att.hp=Math.min(att.maxHp,att.hp+h);}
   if(defKey==='player'&&G.player.reflect20)att.hp-=Math.round(dmg*0.2);
@@ -903,7 +888,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   if(defKey==='player'&&G.player.counter&&dmg>=20){att.hp-=8;addLog('> Counter-Strike: 8 dmg reflected','hit');}
   if(defKey==='player'&&G.player.overload)G.player.overloadStacks=0;
   checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
-  const mgTag=attKey==='player'?(mgMult>=1.4?' [PERFECT]':mgMult>=1.1?' [GOOD]':mgMult<0.8?' [MISS]':''):'';
+  const mgTag=attKey==='player'?(mgMult>=1.4?' [PERFECT]':mgMult>=1.2?' [GREAT]':mgMult>=1.05?' [GOOD]':''):'';
   setMsg(att.name+' used '+moveName+'. '+dmg+' damage!'+(crit?' Critical hit!':'')+mgTag);
   addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg'+(crit?' CRIT':'')+mgTag,attKey==='player'?crit?'crit':'hit':crit?'crit':'ai');
   renderFighter(defKey);gainExpScore(dmg,attKey);
@@ -946,6 +931,9 @@ function aiPick(){
   if(G.ai.special==='burn'){const b=avail.find(m=>m.fx==='burn');if(b&&!G.player.status.burn&&Math.random()<0.5)return b.name;}
   if(G.ai.special==='reflect'){const r=avail.find(m=>m.fx==='reflect');if(r&&Math.random()<0.3)return r.name;}
   if(pp<0.3){const big=avail.reduce((a,b)=>b.dmg[1]>a.dmg[1]?b:a);if(Math.random()<0.8)return big.name;}
+  // MK+ enemies pick big moves more aggressively
+  const aggression=Math.min(0.7,0.2+G.ai.cycle*0.15);
+  if(Math.random()<aggression){const big=avail.reduce((a,b)=>b.dmg[1]>a.dmg[1]?b:a);return big.name;}
   let r=Math.random()*avail.reduce((s,m)=>s+m.pp,0);
   for(const m of avail){r-=m.pp;if(r<=0)return m.name;}
   return avail[0].name;
@@ -995,6 +983,45 @@ function useItem(type){
   }
   renderItems();
 }
+
+const ALL_UPGRADES=[
+  {id:'u_atk1',name:'Targeting Module',desc:'ATK permanently +3',rarity:'common',apply:G=>{G.player.bAtk+=3},check:()=>true},
+  {id:'u_def1',name:'Armor Plating',desc:'DEF permanently +3',rarity:'common',apply:G=>{G.player.bDef+=3},check:()=>true},
+  {id:'u_spd1',name:'Speed Boosters',desc:'SPD +2',rarity:'common',apply:G=>{G.player.spd+=2},check:()=>true},
+  {id:'u_crit1',name:'Precision Core',desc:'Crit chance +8%',rarity:'common',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+8},check:()=>true},
+  {id:'u_evade1',name:'Evasion Matrix',desc:'Dodge chance +7%',rarity:'common',apply:G=>{G.player.evadeBonus=(G.player.evadeBonus||0)+7},check:()=>true},
+  {id:'u_hp1',name:'Reinforced Frame',desc:'Max HP +35',rarity:'common',apply:G=>{G.player.maxHp+=35;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp)},check:()=>true},
+  {id:'u_medpacks',name:'Medpacks x2',desc:'Gain 2 Medpacks',rarity:'common',apply:G=>{G.items.heal+=2},check:()=>true},
+  {id:'u_ethers',name:'Ethers x2',desc:'Gain 2 Ethers',rarity:'common',apply:G=>{G.items.ether+=2},check:()=>true},
+  {id:'u_stims',name:'Stims x2',desc:'Gain 2 Stims',rarity:'common',apply:G=>{G.items.boost+=2},check:()=>true},
+  {id:'u_ppup',name:'Extended Reserves',desc:'All move max PP +3',rarity:'common',apply:G=>{G.player.moves.forEach(m=>{m.maxPp+=3;m.pp=Math.min(m.pp+3,m.maxPp)})},check:()=>true},
+  {id:'u_fortifypp',name:'Fortify Uplink',desc:'Fortify gains +3 PP',rarity:'common',apply:G=>{const f=G.player.moves.find(m=>m.id==='fortify');if(f){f.maxPp+=3;f.pp+=3;}},check:G=>!!G.player.moves.find(m=>m.id==='fortify')},
+  {id:'u_atk2',name:'Overclock Module',desc:'ATK permanently +6',rarity:'rare',apply:G=>{G.player.bAtk+=6},check:()=>true},
+  {id:'u_def2',name:'Reactive Shielding',desc:'DEF +5, reflect 20% damage',rarity:'rare',apply:G=>{G.player.bDef+=5;G.player.reflect20=true},check:()=>true},
+  {id:'u_vamp',name:'Vampiric Rounds',desc:'Attacks restore 15% dmg as HP',rarity:'rare',apply:G=>{G.player.vamp=true},check:G=>!G.player.vamp},
+  {id:'u_doublepp',name:'Overclocked Reserves',desc:'All move PP doubled',rarity:'rare',apply:G=>{G.player.moves.forEach(m=>{m.maxPp*=2;m.pp=m.maxPp})},check:()=>true},
+  {id:'u_crit2',name:'Lethal Configuration',desc:'Crit +15%, crit mult 2.0x',rarity:'rare',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+15;G.player.critMult=2.0},check:()=>true},
+  {id:'u_berserker',name:'Berserker Protocol',desc:'Below 30% HP: ATK doubles',rarity:'rare',apply:G=>{G.player.berserk=true},check:G=>!G.player.berserk},
+  {id:'u_counteratk',name:'Counter-Strike',desc:'When hit 20+dmg, retaliate 8',rarity:'rare',apply:G=>{G.player.counter=true},check:G=>!G.player.counter},
+  {id:'u_burnimmune',name:'Heat Sink',desc:'Immune to Burn',rarity:'rare',apply:G=>{G.player.burnImmune=true},check:G=>!G.player.burnImmune},
+  {id:'u_stunimmune',name:'Iron Will',desc:'Immune to Stun',rarity:'rare',apply:G=>{G.player.stunImmune=true},check:G=>!G.player.stunImmune},
+  {id:'u_executioner',name:'Executioner',desc:'Attacks on <25% HP deal +60%',rarity:'rare',apply:G=>{G.player.execute=true},check:G=>!G.player.execute},
+  {id:'u_laststand',name:'Last Stand',desc:'Below 20% HP: 0 PP cost',rarity:'rare',apply:G=>{G.player.lastStand=true},check:G=>!G.player.lastStand},
+  {id:'u_allstats',name:'Hyper Calibration',desc:'ATK, DEF, SPD all +4',rarity:'epic',apply:G=>{G.player.bAtk+=4;G.player.bDef+=4;G.player.spd+=4},check:()=>true},
+  {id:'u_phoenix',name:'Phoenix Protocol',desc:'Survive fatal blow at 1 HP',rarity:'epic',apply:G=>{G.player.phoenix=true},check:G=>!G.player.phoenix},
+  {id:'u_omni',name:'Omni-Matrix',desc:'Crit+10%, Evade+10%, Vamp, Reflect',rarity:'epic',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+10;G.player.evadeBonus=(G.player.evadeBonus||0)+10;G.player.vamp=true;G.player.reflect10=true},check:()=>true},
+  {id:'u_warmaster',name:'War Master',desc:'ATK+8, DEF+4, unlock Annihilate',rarity:'epic',apply:G=>{G.player.bAtk+=8;G.player.bDef+=4;if(!G.player.moves.find(m=>m.id==='nuke')&&G.player.moves.length<6){const m=BASE_PMOVES.find(x=>x.id==='nuke');if(m)G.player.moves.push({...m,pp:m.maxPp});}},check:()=>true},
+  {id:'u_overload',name:'Overload Core',desc:'+2 ATK per undamaged turn',rarity:'epic',apply:G=>{G.player.overload=true;G.player.overloadStacks=0},check:G=>!G.player.overload},
+];
+
+const TRAITS=[
+  {id:'t_tough',name:'Unyielding',desc:'+5 DEF passively'},
+  {id:'t_swift',name:'Overclocked',desc:'Always acts first if SPD tied'},
+  {id:'t_tactician',name:'Tactician',desc:'Earn +50% score per battle'},
+  {id:'t_ironwill',name:'Iron Will',desc:'Cannot be stunned'},
+  {id:'t_medic',name:'Field Medic',desc:'Medpacks restore +15 extra HP'},
+  {id:'t_momentum',name:'Momentum',desc:'Each consecutive damaging move +5% damage'},
+];
 
 function rollUpgrades(){
   const avail=ALL_UPGRADES.filter(u=>{
@@ -1055,16 +1082,14 @@ function endBattle(winner){
     G.gold+=goldEarned;
     const spd=Math.max(0,(15-G.turn)*10),hp=Math.round(G.player.hp/G.player.maxHp*100),total=base+spd+hp;
     G.waveScore+=total;G.score+=total;
-    document.getElementById('result-detail').textContent='Wave '+G.wave+' cleared!\n\nBase reward:  '+base+'\nSpeed bonus:  +'+spd+'\nHP bonus:     +'+hp+'\nTotal:        '+total+'\nGold earned:  +'+goldEarned+'g\n\nCumulative:   '+G.score.toLocaleString()+'\nGold:         '+G.gold+'g\nLevel:        '+G.level;
+    const cycleNote=G.ai.cycle>0?'\nMK Cycle:     '+G.ai.cycle+' (+bonuses)':'';
+    document.getElementById('result-detail').textContent='Wave '+G.wave+' cleared!'+cycleNote+'\n\nBase reward:  '+base+'\nSpeed bonus:  +'+spd+'\nHP bonus:     +'+hp+'\nTotal:        '+total+'\nGold earned:  +'+goldEarned+'g\n\nCumulative:   '+G.score.toLocaleString()+'\nGold:         '+G.gold+'g\nLevel:        '+G.level;
     addLog('=== VICTORY Wave '+G.wave+' — +'+total+' (+'+goldEarned+'g) ===','sys');
-
-    // Restock shop each wave (stacking probability)
     const restockChance=Math.min(0.95,0.5+G.wave*0.05);
     if(Math.random()<restockChance||!G.shop||G.shop.length===0){
       G.shop=rollShop();
       addLog('> Shop restocked for Wave '+(G.wave+1),'proj');
     }
-
     const upgrades=rollUpgrades();
     const upDiv=document.getElementById('upgrade-pick');
     const chDiv=document.getElementById('upgrade-choices');
