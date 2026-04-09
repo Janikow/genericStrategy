@@ -348,7 +348,7 @@ function runMinigame(moveName,tier){
     // 5 keys base, +1 per tier, max 12
     const numKeys=clamp(5+tier,5,12);
     // time per key: 1400ms base, -100ms per tier, min 500ms
-    const timePerKey=Math.max(200,500-tier*100);
+    const timePerKey=Math.max(300,1000-tier*100);
     const seq=genArrowSeq(numKeys);
     let idx=0,hits=0;
 
