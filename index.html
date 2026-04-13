@@ -842,7 +842,7 @@ function buildEnemy(waveIdx){
   const poolIdx=waveIdx%ENEMY_BASE_POOLS.length;
   const e=ENEMY_BASE_POOLS[poolIdx];
   const cycle=Math.floor(waveIdx/ENEMY_BASE_POOLS.length);
-  const mkHpScale=Math.pow(1.35,cycle),mkAtkScale=Math.pow(1.28,cycle),mkDefScale=Math.pow(1.22,cycle),mkSpdScale=Math.pow(1.10,cycle),mkRewardScale=Math.pow(1.18,cycle);
+  const mkHpScale=Math.pow(7.5,cycle),mkAtkScale=Math.pow(7.5,cycle),mkDefScale=Math.pow(7.5,cycle),mkSpdScale=Math.pow(7.5,cycle),mkRewardScale=Math.pow(7.5,cycle);
   const withinScale=1+poolIdx*0.06;
   const dmgScale=Math.max(0.8,1+waveIdx*0.07+cycle*0.12);
   const themeIdx=poolIdx%ENEMY_THEMES.length;
