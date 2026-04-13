@@ -675,8 +675,8 @@ const ENEMY_THEMES=[
     aiDesc:'Sustain fighter. Uses drain when HP drops. Stacks healing. Poison counters its regen.',
     buildFn:(wi,ds)=>[
       {name:'Power Slam',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:90,pp:12,maxPp:12,fx:null},
-      {name:'Life Drain',dmg:[Math.round(15*ds),Math.round(22*ds)],acc:85,pp:12,maxPp:12,fx:'drain'},
-      {name:'Leech Field',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
+      {name:'Life Drain',dmg:[Math.round(10*ds),Math.round(17*ds)],acc:85,pp:12,maxPp:12,fx:'drain'},
+      {name:'Leech Field',dmg:[Math.round(15*ds),Math.round(21*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
       {name:'Brace',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_def'},
     ]
   },
@@ -863,7 +863,7 @@ const ENEMY_BASE_POOLS=[
   {hp:110,atk:9, def:8,  spd:8, evade:0, reward:80, gold:30},
   {hp:140,atk:12,def:10, spd:10,evade:2, reward:150,gold:45},
   {hp:170,atk:15,def:12, spd:12,evade:4, reward:230,gold:60},
-  {hp:200,atk:18,def:14, spd:14,evade:6, reward:320,gold:80},
+  {hp:135,atk:18,def:14, spd:14,evade:6, reward:320,gold:80},
   {hp:240,atk:22,def:17, spd:16,evade:8, reward:450,gold:100},
   {hp:295,atk:27,def:21, spd:18,evade:10,reward:620,gold:130},
   {hp:370,atk:34,def:26, spd:21,evade:13,reward:880,gold:165},
