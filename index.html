@@ -762,7 +762,7 @@ const ENEMY_THEMES=[
     buildFn:(wi,ds)=>[
       {name:'Shadow Stab',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:90,pp:12,maxPp:12,fx:'highcrit'},
       {name:'Phantom Slash',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:82,pp:9,maxPp:9,fx:'highcrit'},
-      {name:'Nullify',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'reflect'},
+      {name:'Nullify',dmg:[0,0],acc:100,pp:3,maxPp:3,fx:'reflect'},
       {name:'Quick Stab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:98,pp:14,maxPp:14,fx:null},
       {name:'Rupture',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:85,pp:8,maxPp:8,fx:'bleed'},
     ],
@@ -1314,6 +1314,9 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   // Taunt
   if(attKey==='ai'&&G.ai.status&&G.ai.status.tauntTurns>0){
     const bigMv=G.ai.moves.filter(m=>m.pp>0&&m.dmg&&m.dmg[0]>0).sort((a,b)=>b.dmg[1]-a.dmg[1])[0];
+     if(G.ai.name === 'Phantom Blade'){
+    forcedMove = G.ai.moves.find(m => m.pp > 0 && m.name === 'Nullify');
+  }
     if(bigMv&&bigMv.name!==moveName){G.ai.status.tauntTurns=Math.max(0,G.ai.status.tauntTurns-1);return execMove(attKey,defKey,bigMv.name,mgMult);}
     G.ai.status.tauntTurns=Math.max(0,G.ai.status.tauntTurns-1);
   }
