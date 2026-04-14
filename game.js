@@ -1,47 +1,29 @@
 const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const CRIT_CAP=95,EVADE_CAP=75;
 
-const CRIT_CAP=95;
-const EVADE_CAP=75;
-
-// Smart tooltip: flip to left if tooltip would go off-screen
 function positionTooltip(wrapEl){
-  const tip=wrapEl.querySelector('.tooltip-box');
-  if(!tip)return;
-  const r=wrapEl.getBoundingClientRect();
-  const tipW=260;
+  const tip=wrapEl.querySelector('.tooltip-box');if(!tip)return;
+  const r=wrapEl.getBoundingClientRect(),tipW=220;
   const offRight=r.right+tipW>window.innerWidth-10;
-  if(offRight){tip.classList.add('tip-auto-left');}
-  else{tip.classList.remove('tip-auto-left');}
+  if(offRight)tip.classList.add('tip-auto-left');else tip.classList.remove('tip-auto-left');
 }
-document.addEventListener('mouseover',e=>{
-  const wrap=e.target.closest('.tooltip-wrap');
-  if(wrap)positionTooltip(wrap);
-});
+document.addEventListener('mouseover',e=>{const w=e.target.closest('.tooltip-wrap');if(w)positionTooltip(w);});
 
-// Arrow key minigame
-const ARROW_KEYS=[
-  {key:'ArrowUp',label:'↑',opposite:'ArrowDown'},
-  {key:'ArrowDown',label:'↓',opposite:'ArrowUp'},
-  {key:'ArrowLeft',label:'←',opposite:'ArrowRight'},
-  {key:'ArrowRight',label:'→',opposite:'ArrowLeft'},
-];
+const ARROW_KEYS=[{key:'ArrowUp',label:'↑'},{key:'ArrowDown',label:'↓'},{key:'ArrowLeft',label:'←'},{key:'ArrowRight',label:'→'}];
 const OPPOSITE_ARROW={ArrowUp:'ArrowDown',ArrowDown:'ArrowUp',ArrowLeft:'ArrowRight',ArrowRight:'ArrowLeft'};
 
-function genArrowSeq(len,invertChance=0.0){
+function genArrowSeq(len,invertChance=0){
   const seq=[];
   for(let i=0;i<len;i++){
-    let k;
-    do{k=ARROW_KEYS[rnd(0,3)];}while(seq.length>0&&k.key===seq[seq.length-1].key);
-    const inverted=Math.random()<invertChance;
-    seq.push({...k,inverted});
+    let k;do{k=ARROW_KEYS[rnd(0,3)];}while(seq.length>0&&k.key===seq[seq.length-1].key);
+    seq.push({...k,inverted:Math.random()<invertChance});
   }
   return seq;
 }
 
 let mgActive=false,mgAnimFrame=null;
-
 function runMinigame(moveName,tier,enemyEvade=5){
   return new Promise(resolve=>{
     mgActive=true;
@@ -50,103 +32,67 @@ function runMinigame(moveName,tier,enemyEvade=5){
     const invertChance=clamp(enemyEvade/EVADE_CAP*0.4,0,0.40);
     const seq=genArrowSeq(numKeys,invertChance);
     let idx=0,hits=0,totalHitTime=0,hitCount=0;
-
     document.getElementById('mg-move-name').textContent='Move: '+moveName;
     document.getElementById('mg-result').textContent='';
-    document.getElementById('mg-hint').textContent='Press the highlighted key! Dashed border = INVERTED (press OPPOSITE direction)!';
+    document.getElementById('mg-hint').textContent='Press the highlighted key! Dashed = INVERTED (press OPPOSITE)!';
     document.getElementById('mg-progress').textContent='Key 1 / '+numKeys;
-    document.getElementById('mg-threshold').textContent='Hit 50%+ to land attack | Hit fast for +25% dmg bonus';
+    document.getElementById('mg-threshold').textContent='Hit 50%+ to land | Hit fast for +25% dmg bonus';
     document.getElementById('mg-speed-bar').style.width='0%';
     const invertCount=seq.filter(s=>s.inverted).length;
-    document.getElementById('mg-inverted-label').textContent=invertCount>0?'⚠ '+invertCount+' inverted key'+(invertCount>1?'s':'')+'  in this sequence':'';
-
-    const keysRow=document.getElementById('mg-keys-row');
-    keysRow.innerHTML='';
+    document.getElementById('mg-inverted-label').textContent=invertCount>0?'⚠ '+invertCount+' inverted key'+(invertCount>1?'s':''):'';
+    const keysRow=document.getElementById('mg-keys-row');keysRow.innerHTML='';
     const keyEls=seq.map((k,i)=>{
       const el=document.createElement('div');
-      let cls='mg-key'+(i===0?' next':' pending')+(k.inverted?' inverted':'');
-      el.className=cls;
-      if(k.inverted){
-        el.innerHTML=k.label+'<span style="font-size:9px;position:absolute;top:1px;right:2px">⊗</span>';
-        el.style.position='relative';
-      }else{el.textContent=k.label;}
-      keysRow.appendChild(el);
-      return el;
+      el.className='mg-key'+(i===0?' next':' pending')+(k.inverted?' inverted':'');
+      el.textContent=k.label;
+      if(k.inverted){const sp=document.createElement('span');sp.style.cssText='font-size:9px;position:absolute;top:1px;right:2px';sp.textContent='⊗';el.style.position='relative';el.appendChild(sp);}
+      keysRow.appendChild(el);return el;
     });
-
     document.getElementById('minigame-overlay').classList.add('active');
-    const bar=document.getElementById('mg-timer-bar');
-    const speedBar=document.getElementById('mg-speed-bar');
+    const bar=document.getElementById('mg-timer-bar'),speedBar=document.getElementById('mg-speed-bar');
     let keyStart=performance.now();
-
     function tick(){
       if(!mgActive)return;
-      const elapsed=performance.now()-keyStart;
-      const pct=Math.max(0,1-elapsed/timePerKey);
+      const elapsed=performance.now()-keyStart,pct=Math.max(0,1-elapsed/timePerKey);
       bar.style.width=(pct*100).toFixed(1)+'%';
-      if(hitCount>0){
-        const avgFrac=totalHitTime/(hitCount*timePerKey);
-        speedBar.style.width=Math.round(clamp((1-avgFrac)*100,0,100))+'%';
-      }
+      if(hitCount>0){const af=totalHitTime/(hitCount*timePerKey);speedBar.style.width=Math.round(clamp((1-af)*100,0,100))+'%';}
       if(elapsed>timePerKey){keyEls[idx].className='mg-key miss'+(seq[idx].inverted?' inverted':'');advance(false,timePerKey);return;}
       mgAnimFrame=requestAnimationFrame(tick);
     }
-
     function advance(wasHit,hitTime){
       if(wasHit){hitCount++;totalHitTime+=hitTime;hits++;}
-      idx++;
-      if(idx>=seq.length){finish();return;}
-      let cls='mg-key next'+(seq[idx].inverted?' inverted':'');
-      keyEls[idx].className=cls;
+      idx++;if(idx>=seq.length){finish();return;}
+      keyEls[idx].className='mg-key next'+(seq[idx].inverted?' inverted':'');
       document.getElementById('mg-progress').textContent='Key '+(idx+1)+' / '+numKeys;
-      keyStart=performance.now();
-      mgAnimFrame=requestAnimationFrame(tick);
+      keyStart=performance.now();mgAnimFrame=requestAnimationFrame(tick);
     }
-
     function finish(){
-      mgActive=false;
-      cancelAnimationFrame(mgAnimFrame);
-      bar.style.width='0%';
+      mgActive=false;cancelAnimationFrame(mgAnimFrame);bar.style.width='0%';
       const ratio=hits/numKeys;
       if(ratio<0.5){
-        document.getElementById('mg-result').textContent='FAILED — '+hits+'/'+numKeys+' keys — attack misses!';
+        document.getElementById('mg-result').textContent='FAILED — '+hits+'/'+numKeys+' — attack misses!';
         document.getElementById('mg-hint').textContent='';
         document.removeEventListener('keydown',onKey);
-        setTimeout(()=>{document.getElementById('minigame-overlay').classList.remove('active');resolve(0);},900);
-        return;
+        setTimeout(()=>{document.getElementById('minigame-overlay').classList.remove('active');resolve(0);},900);return;
       }
       let speedMult=1.0;
-      if(hitCount>0){
-        const avgFrac=totalHitTime/(hitCount*timePerKey);
-        speedMult=1.0+clamp((1-avgFrac)*0.25,0,0.25);
-      }
-      let grade;
-      if(speedMult>=1.22)grade='PERFECT';
-      else if(speedMult>=1.15)grade='GREAT';
-      else if(speedMult>=1.08)grade='GOOD';
-      else grade='OK';
-      const finalSpeedPct=hitCount>0?Math.round(clamp((1-(totalHitTime/(hitCount*timePerKey)))*100,0,100)):0;
-      speedBar.style.width=finalSpeedPct+'%';
+      if(hitCount>0){const af=totalHitTime/(hitCount*timePerKey);speedMult=1.0+clamp((1-af)*0.25,0,0.25);}
+      let grade=speedMult>=1.22?'PERFECT':speedMult>=1.15?'GREAT':speedMult>=1.08?'GOOD':'OK';
+      const fsp=hitCount>0?Math.round(clamp((1-(totalHitTime/(hitCount*timePerKey)))*100,0,100)):0;
+      speedBar.style.width=fsp+'%';
       document.getElementById('mg-result').textContent=grade+'  '+hits+'/'+numKeys+' keys  ×'+speedMult.toFixed(2)+' DMG';
       document.getElementById('mg-hint').textContent='';
       document.removeEventListener('keydown',onKey);
       setTimeout(()=>{document.getElementById('minigame-overlay').classList.remove('active');resolve(speedMult);},900);
     }
-
     function onKey(e){
       if(!mgActive||idx>=seq.length)return;
-      const arrows=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
-      if(!arrows.includes(e.key))return;
+      if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))return;
       e.preventDefault();
       const hitTime=performance.now()-keyStart;
-      const expectedKey=seq[idx].inverted?OPPOSITE_ARROW[seq[idx].key]:seq[idx].key;
-      if(e.key===expectedKey){
-        keyEls[idx].className='mg-key hit';
-        cancelAnimationFrame(mgAnimFrame);setTimeout(()=>advance(true,hitTime),70);
-      }else{
-        keyEls[idx].className='mg-key miss';
-        cancelAnimationFrame(mgAnimFrame);setTimeout(()=>advance(false,hitTime),70);
-      }
+      const expected=seq[idx].inverted?OPPOSITE_ARROW[seq[idx].key]:seq[idx].key;
+      if(e.key===expected){keyEls[idx].className='mg-key hit';cancelAnimationFrame(mgAnimFrame);setTimeout(()=>advance(true,hitTime),70);}
+      else{keyEls[idx].className='mg-key miss';cancelAnimationFrame(mgAnimFrame);setTimeout(()=>advance(false,hitTime),70);}
     }
     document.addEventListener('keydown',onKey);
     mgAnimFrame=requestAnimationFrame(tick);
@@ -154,20 +100,15 @@ function runMinigame(moveName,tier,enemyEvade=5){
 }
 
 const ENEMY_BASE_NAMES=['Beta','Gamma','Delta','Epsilon','Omega','Nemesis','Titan','Singularity','Vortex','Dreadnought','Phantom','Colossus'];
-function getEnemyName(waveIdx){
-  const base=ENEMY_BASE_NAMES[waveIdx%ENEMY_BASE_NAMES.length];
-  const cycle=Math.floor(waveIdx/ENEMY_BASE_NAMES.length);
-  return 'Unit '+base+(cycle>0?' MK'+(cycle+1):'');
-}
+function getEnemyName(wi){const b=ENEMY_BASE_NAMES[wi%ENEMY_BASE_NAMES.length],c=Math.floor(wi/ENEMY_BASE_NAMES.length);return'Unit '+b+(c>0?' MK'+(c+1):'');}
 
-// Shop catalog
 const SHOP_CATALOG=[
   {id:'s_heal',name:'Medpack',desc:'Restore 35+HP',cost:60,shopOnly:false,apply:G=>{G.items.heal+=1;}},
   {id:'s_ether',name:'Ether',desc:'Restore all PP',cost:90,shopOnly:false,apply:G=>{G.items.ether+=1;}},
   {id:'s_boost',name:'Stim',desc:'ATK +40% for 3 turns',cost:80,shopOnly:false,apply:G=>{G.items.boost+=1;}},
   {id:'s_shield',name:'Shield Cell',desc:'DEF x2 for 2 turns',cost:75,shopOnly:false,apply:G=>{G.items.shield=(G.items.shield||0)+1;}},
   {id:'s_flash',name:'Flash Grenade',desc:'Guarantee stun next turn',cost:100,shopOnly:false,apply:G=>{G.items.flash=(G.items.flash||0)+1;}},
-  {id:'s_clens',name:'Critical Lens',desc:'+20% ACC on next move',cost:70,shopOnly:false,apply:G=>{G.items.clens=(G.items.clens||0)+1;}},
+  {id:'s_clens',name:'Critical Lens',desc:'+20% ACC & guarantee next effect on next move',cost:70,shopOnly:false,apply:G=>{G.items.clens=(G.items.clens||0)+1;}},
   {id:'s_atkup',name:'ATK Shard',desc:'Permanently +4 ATK',cost:140,shopOnly:true,rare:true,apply:G=>{G.player.bAtk+=4;}},
   {id:'s_defup',name:'DEF Shard',desc:'Permanently +4 DEF',cost:140,shopOnly:true,rare:true,apply:G=>{G.player.bDef+=4;}},
   {id:'s_spdboost',name:'Velocity Core',desc:'Permanently +3 SPD',cost:130,shopOnly:true,rare:true,apply:G=>{G.player.spd+=3;}},
@@ -189,108 +130,88 @@ const SHOP_CATALOG=[
 function rollShop(){
   const standard=SHOP_CATALOG.filter(x=>!x.shopOnly).filter(()=>Math.random()<0.55);
   const rareItems=SHOP_CATALOG.filter(x=>x.shopOnly&&x.rare).filter(()=>Math.random()<0.18);
-  return [...standard,...rareItems];
+  return[...standard,...rareItems];
 }
-
 function renderShop(){
-  const grid=document.getElementById('shop-grid');
-  grid.innerHTML='';
+  const grid=document.getElementById('shop-grid');grid.innerHTML='';
   document.getElementById('gold-display').textContent=G.gold;
-  if(!G.shop||!G.shop.length){
-    document.getElementById('shop-status').textContent='Sold out';
-    grid.innerHTML='<div class="shop-empty">Sold out — restocks next wave</div>';
-    return;
-  }
+  if(!G.shop||!G.shop.length){document.getElementById('shop-status').textContent='Sold out';grid.innerHTML='<div class="shop-empty">Sold out — restocks next wave</div>';return;}
   document.getElementById('shop-status').textContent='Open';
   G.shop.forEach((item,i)=>{
     if(item.traitId&&G.traits.find(t=>t.id===item.traitId))return;
-    const wrap=document.createElement('div');
-    wrap.className='tooltip-wrap';
-    const btn=document.createElement('button');
-    btn.className='shop-item';
+    const wrap=document.createElement('div');wrap.className='tooltip-wrap';
+    const btn=document.createElement('button');btn.className='shop-item';
     btn.disabled=G.gold<item.cost||G.busy||G.phase!=='player';
-    btn.innerHTML=`<span class="shop-item-name">${item.name}${item.rare?'★':''}</span><span class="shop-item-cost">${item.cost}g</span>`;
+    btn.innerHTML='<span class="shop-item-name">'+item.name+(item.rare?'★':'')+'</span><span class="shop-item-cost">'+item.cost+'g</span>';
     btn.addEventListener('click',async()=>{
       if(G.gold<item.cost||G.busy)return;
       G.gold-=item.cost;
-      if(item.apply.constructor.name==='AsyncFunction'){await item.apply(G);}
-      else{item.apply(G);}
-      G.shop.splice(i,1);
-      addLog(`> Shop: bought ${item.name} (-${item.cost}g)`,'proj');
+      if(item.apply.constructor.name==='AsyncFunction')await item.apply(G);else item.apply(G);
+      G.shop.splice(i,1);addLog('> Shop: bought '+item.name+' (-'+item.cost+'g)','proj');
       renderShop();renderAll();
     });
-    const tip=document.createElement('div');
-    tip.className='tooltip-box';
+    const tip=document.createElement('div');tip.className='tooltip-box';
     tip.textContent=item.name+(item.rare?' [RARE]':'')+'\nCost: '+item.cost+'g\n'+item.desc;
-    wrap.appendChild(btn);wrap.appendChild(tip);
-    grid.appendChild(wrap);
+    wrap.appendChild(btn);wrap.appendChild(tip);grid.appendChild(wrap);
   });
 }
 
-// ── MOVES ──────────────────────────────────────────────────────────────────
 const TIER_DMG_SCALE=[1.0,1.3,1.65,2.0];
-
 const BASE_PMOVES=[
-  // T0 basics
-  {id:'quick',name:'Quick Strike',dmg:[14,20],acc:95,pp:18,maxPp:18,desc:'PWR 17 | ACC 95 | T0',fx:null,tier:0,tipExtra:'Fast, reliable. No special effects.'},
+  {id:'quick',name:'Quick Strike',dmg:[14,20],acc:95,pp:18,maxPp:18,desc:'PWR 17 | ACC 95 | T0 | Always first',fx:null,tier:0,tipExtra:'Always acts first regardless of SPD. Fast and reliable.'},
   {id:'heavy',name:'Heavy Blow',dmg:[22,30],acc:82,pp:10,maxPp:10,desc:'PWR 26 | ACC 82 | T0',fx:null,tier:0,tipExtra:'Powerful but lower accuracy. Pure damage.'},
-  {id:'barrage',name:'Rapid Barrage',dmg:[8,12],acc:88,pp:10,maxPp:10,desc:'PWR 10x2 | ACC 88 | Multi | T0',fx:'multihit',tier:0,tipExtra:'Hits twice. Triggers on-hit effects twice.'},
-  {id:'stun',name:'Shock Pulse',dmg:[18,25],acc:85,pp:10,maxPp:10,desc:'PWR 22 | 40% Stun | T0',fx:'stun',tier:0,tipExtra:'40% chance to stun opponent for 1 turn.'},
-  {id:'freeze_t0',name:'Cryo Snap',dmg:[16,22],acc:90,pp:10,maxPp:10,desc:'PWR 19 | SPD-1 2t | T0',fx:'chill',tier:0,tipExtra:'Reduces enemy SPD by 1 for 2 turns.'},
-  {id:'thorn',name:'Thorn Strike',dmg:[12,18],acc:92,pp:12,maxPp:12,desc:'PWR 15 | Thorn 10% | T0',fx:'thornstrike',tier:0,tipExtra:'Deals damage + reflects 10% back to enemy.'},
-  {id:'rend',name:'Rend',dmg:[10,16],acc:94,pp:14,maxPp:14,desc:'PWR 13 | DEF-1 2t | T0',fx:'rend',tier:0,tipExtra:'Shreds enemy DEF by 1 stage for 2 turns. Stack for big gains.'},
-  {id:'sweepkick',name:'Sweep Kick',dmg:[13,19],acc:90,pp:12,maxPp:12,desc:'PWR 16 | 30% SPD-1 | T0',fx:'sweepkick',tier:0,tipExtra:'30% chance to slow the enemy (SPD-1) for 2 turns.'},
-  // T1
+  {id:'barrage',name:'Rapid Barrage',dmg:[8,12],acc:88,pp:10,maxPp:10,desc:'PWR 10x2 | ACC 88 | Multi | T0',fx:'multihit',tier:0,tipExtra:'Hits twice.'},
+  {id:'stun',name:'Shock Pulse',dmg:[18,25],acc:85,pp:10,maxPp:10,desc:'PWR 22 | 40% Stun | T0',fx:'stun',tier:0,tipExtra:'40% chance to stun. Lens guarantees stun.'},
+  {id:'freeze_t0',name:'Cryo Snap',dmg:[16,22],acc:90,pp:10,maxPp:10,desc:'PWR 19 | SPD-1 2t | T0',fx:'chill',tier:0,tipExtra:'Reduces enemy SPD by 1 for 2 turns. Lens guarantees chill.'},
+  {id:'thorn',name:'Thorn Strike',dmg:[12,18],acc:92,pp:12,maxPp:12,desc:'PWR 15 | Thorn 10% | T0',fx:'thornstrike',tier:0,tipExtra:'Deals damage + reflects 10% back.'},
+  {id:'rend',name:'Rend',dmg:[10,16],acc:94,pp:14,maxPp:14,desc:'PWR 13 | DEF-1 2t | T0',fx:'rend',tier:0,tipExtra:'Shreds enemy DEF by 1 stage for 2 turns.'},
+  {id:'sweepkick',name:'Sweep Kick',dmg:[13,19],acc:90,pp:12,maxPp:12,desc:'PWR 16 | 30% SPD-1 | T0',fx:'sweepkick',tier:0,tipExtra:'30% chance to slow. Lens guarantees slow.'},
   {id:'blast',name:'Overcharge',dmg:[30,40],acc:70,pp:7,maxPp:7,desc:'PWR 35 | ACC 70 | T1',fx:null,tier:1,tipExtra:'High damage, lower accuracy.'},
   {id:'drain',name:'Life Drain',dmg:[22,30],acc:88,pp:10,maxPp:10,desc:'PWR 26 | Heal 50% | T1',fx:'drain',tier:1,tipExtra:'Steals 50% of damage dealt as HP.'},
-  {id:'pierce',name:'Void Strike',dmg:[20,28],acc:80,pp:10,maxPp:10,desc:'PWR 24 | Bypass DEF | T1',fx:'pierce',tier:1,tipExtra:'Completely bypasses enemy DEF. Damage is based on raw ATK only. Best vs tanky foes.'},
-  {id:'burn',name:'Incinerator',dmg:[16,24],acc:88,pp:12,maxPp:12,desc:'PWR 20 | Burn 3t | T1',fx:'burn',tier:1,tipExtra:'Burns enemy: 5.5% max HP per end-of-round for 3 rounds.'},
-  {id:'chill',name:'Cryo Bolt',dmg:[20,28],acc:90,pp:10,maxPp:10,desc:'PWR 24 | SPD-2 3t | T1',fx:'chill',tier:1,tipExtra:'Chills enemy: SPD-2 for 3 turns + mild ATK reduction.'},
-  {id:'poison',name:'Toxin Dart',dmg:[10,16],acc:92,pp:12,maxPp:12,desc:'PWR 13 | Poison 4t | T1',fx:'poison',tier:1,tipExtra:'Poisons: 4% max HP per round for 4 rounds.'},
-  {id:'bleedstrike',name:'Rupture',dmg:[18,26],acc:86,pp:10,maxPp:10,desc:'PWR 22 | Bleed 3t | T1',fx:'bleed',tier:1,tipExtra:'Bleeds enemy: 5% max HP per round for 3 rounds.'},
-  {id:'sunder',name:'Sunder',dmg:[15,22],acc:88,pp:10,maxPp:10,desc:'PWR 18 | DEF-2 3t | T1',fx:'sunder',tier:1,tipExtra:'Reduces enemy DEF by 2 stages for 3 turns. Great setup move for heavy hitters.'},
-  {id:'overwatch',name:'Overwatch',dmg:[18,25],acc:92,pp:10,maxPp:10,desc:'PWR 21 | Counter next | T1',fx:'overwatch',tier:1,tipExtra:'Sets up a counter-hit: if enemy attacks you this turn, auto-deal 50% of their damage back.'},
-  // T2
-  {id:'snipe',name:'Sniper Shot',dmg:[36,50],acc:82,pp:8,maxPp:8,desc:'PWR 43 | Crit+30% | T2',fx:'highcrit',tier:2,tipExtra:'High crit chance (+30%). Great for burst damage.'},
-  {id:'chain',name:'Chain Attack',dmg:[26,36],acc:92,pp:10,maxPp:10,desc:'PWR 31 | +12ea | T2',fx:'chain',tier:2,tipExtra:'Gains +12 ATK per consecutive use. Stack for massive damage.'},
-  {id:'regen',name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Regen 3t | T2',fx:'regen',tier:2,tipExtra:'Restores 7% max HP each end-of-round for 3 rounds.'},
+  {id:'pierce',name:'Void Strike',dmg:[20,28],acc:80,pp:10,maxPp:10,desc:'PWR 24 | Bypass DEF | T1',fx:'pierce',tier:1,tipExtra:'Completely bypasses enemy DEF.'},
+  {id:'burn',name:'Incinerator',dmg:[16,24],acc:88,pp:12,maxPp:12,desc:'PWR 20 | Burn 3t | T1',fx:'burn',tier:1,tipExtra:'Burns enemy: 5.5% max HP/round 3 rounds. Lens guarantees burn.'},
+  {id:'chill',name:'Cryo Bolt',dmg:[20,28],acc:90,pp:10,maxPp:10,desc:'PWR 24 | SPD-2 3t | T1',fx:'chill',tier:1,tipExtra:'Chills enemy: SPD-2 for 3 turns. Lens guarantees chill.'},
+  {id:'poison',name:'Toxin Dart',dmg:[10,16],acc:92,pp:12,maxPp:12,desc:'PWR 13 | Poison 4t | T1',fx:'poison',tier:1,tipExtra:'Poisons: 4% max HP per round 4 rounds. Lens guarantees poison.'},
+  {id:'bleedstrike',name:'Rupture',dmg:[18,26],acc:86,pp:10,maxPp:10,desc:'PWR 22 | Bleed 3t | T1',fx:'bleed',tier:1,tipExtra:'Bleeds enemy: 5% max HP per round 3 rounds.'},
+  {id:'sunder',name:'Sunder',dmg:[15,22],acc:88,pp:10,maxPp:10,desc:'PWR 18 | DEF-2 3t | T1',fx:'sunder',tier:1,tipExtra:'Reduces enemy DEF by 2 stages for 3 turns.'},
+  {id:'overwatch',name:'Overwatch',dmg:[18,25],acc:92,pp:10,maxPp:10,desc:'PWR 21 | Counter next | T1',fx:'overwatch',tier:1,tipExtra:'Counter-hit: if enemy attacks, auto-deal 50% back.'},
+  // NEW: Gambler's Edge
+  {id:'gamble',name:"Gambler's Edge",dmg:[10,60],acc:90,pp:8,maxPp:8,desc:"PWR ???  |  Luck | T1",fx:'gamble',tier:1,tipExtra:"Rolls a random outcome each use. Possible results:\n• JACKPOT: massive crit hit\n• DRAIN: heavy hit + lifesteal\n• DOUBLE: hits twice\n• SHIELD: defend + small hit\n• BUST: whiff — no damage\nWith Jackpot Synergy upgrade, each outcome is amplified.\nLens forces JACKPOT result."},
+  {id:'snipe',name:'Sniper Shot',dmg:[36,50],acc:82,pp:8,maxPp:8,desc:'PWR 43 | Crit+30% | T2',fx:'highcrit',tier:2,tipExtra:'High crit chance (+30%).'},
+  {id:'chain',name:'Chain Attack',dmg:[26,36],acc:92,pp:10,maxPp:10,desc:'PWR 31 | +12ea | T2',fx:'chain',tier:2,tipExtra:'Gains +12 ATK per consecutive use.'},
+  {id:'regen',name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Regen 3t | T2',fx:'regen',tier:2,tipExtra:'Restores 7% max HP each end-of-round 3 rounds.'},
   {id:'shield',name:'Iron Wall',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'DEF x2 2t | T2',fx:'ironwall',tier:2,tipExtra:'Doubles your DEF for 2 turns.'},
   {id:'leech',name:'Leech Field',dmg:[30,42],acc:88,pp:7,maxPp:7,desc:'PWR 36 | Heal+Poison | T2',fx:'leech',tier:2,tipExtra:'Drains HP (heal 50%) AND poisons enemy 3 turns.'},
   {id:'reflect',name:'Nullify',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'Negate next attack | T2',fx:'reflect',tier:2,tipExtra:'Reflects the next incoming attack back at attacker.'},
-  {id:'execute_t2',name:'Finishing Blow',dmg:[28,40],acc:88,pp:8,maxPp:8,desc:'PWR 34 | +50% <30%HP | T2',fx:'executeblow',tier:2,tipExtra:'Deals +50% damage if enemy is below 30% HP. Excellent closer.'},
-  {id:'volley',name:'Arrow Volley',dmg:[10,15],acc:90,pp:10,maxPp:10,desc:'PWR 12 x3 | T2',fx:'triplehit',tier:2,tipExtra:'Hits 3 times. Each hit can crit and trigger on-hit effects separately.'},
-  // T3
-  {id:'nuke',name:'Annihilate',dmg:[65,82],acc:62,pp:4,maxPp:4,desc:'PWR 73 | ACC 62 | T3',fx:null,tier:3,tipExtra:'Massive damage, low accuracy, scarce PP.'},
+  {id:'execute_t2',name:'Finishing Blow',dmg:[28,40],acc:88,pp:8,maxPp:8,desc:'PWR 34 | +50% <30%HP | T2',fx:'executeblow',tier:2,tipExtra:'Deals +50% damage if enemy is below 30% HP.'},
+  {id:'volley',name:'Arrow Volley',dmg:[10,15],acc:90,pp:10,maxPp:10,desc:'PWR 12 x3 | T2',fx:'triplehit',tier:2,tipExtra:'Hits 3 times.'},
+  {id:'nuke',name:'Annihilate',dmg:[65,82],acc:62,pp:4,maxPp:4,desc:'PWR 73 | ACC 62 | T3',fx:null,tier:3,tipExtra:'Massive damage, low accuracy.'},
   {id:'glacial',name:'Glacial Nova',dmg:[46,60],acc:78,pp:5,maxPp:5,desc:'PWR 53 | Freeze+Bleed | T3',fx:'glacial',tier:3,tipExtra:'Heavy damage, 50% freeze, applies Bleed.'},
   {id:'rupture_t3',name:'Deathmark',dmg:[42,56],acc:85,pp:5,maxPp:5,desc:'PWR 49 | +20% dmg 2t | T3',fx:'deathmark',tier:3,tipExtra:'Marks enemy: your attacks +20% for 2 turns.'},
   {id:'overload_atk',name:'Overdrive',dmg:[36,50],acc:90,pp:6,maxPp:6,desc:'PWR 43 | Stacks ATK | T3',fx:'overloadhit',tier:3,tipExtra:'Each hit permanently stacks +3 ATK (up to 5 stacks).'},
-  {id:'supernova',name:'Supernova',dmg:[55,72],acc:72,pp:5,maxPp:5,desc:'PWR 63 | Burn+Bleed+Chill | T3',fx:'supernova',tier:3,tipExtra:'Massive AoE-style blast. Applies Burn, Bleed, AND Chill simultaneously.'},
-  {id:'wraithform',name:'Wraith Form',dmg:[0,0],acc:100,pp:4,maxPp:4,desc:'Evade+30% for 2t | T3',fx:'wraithform',tier:3,tipExtra:'Enter wraith state: evade +30% for 2 turns. Devastating with high-SPD builds.'},
-  // Shop-exclusive moves
-  {id:'taunt',name:'Taunt',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Force big moves 2t | Shop',fx:'taunt',tier:0,shopExclusive:true,tipExtra:'Forces enemy to use their highest-damage moves for 2 turns.'},
+  {id:'supernova',name:'Supernova',dmg:[55,72],acc:72,pp:5,maxPp:5,desc:'PWR 63 | Burn+Bleed+Chill | T3',fx:'supernova',tier:3,tipExtra:'Massive blast. Applies Burn, Bleed, AND Chill.'},
+  {id:'wraithform',name:'Wraith Form',dmg:[0,0],acc:100,pp:4,maxPp:4,desc:'Evade+30% for 2t | T3',fx:'wraithform',tier:3,tipExtra:'Evade +30% for 2 turns.'},
+  {id:'taunt',name:'Taunt',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Force big moves 2t | Shop',fx:'taunt',tier:0,shopExclusive:true,tipExtra:'Forces enemy to use their highest-damage moves.'},
   {id:'fortify_atk',name:'Power Up',dmg:[0,0],acc:100,pp:8,maxPp:8,desc:'ATK +2 3t | Shop',fx:'fortify_atk',tier:0,shopExclusive:true,tipExtra:'Raises your ATK by 2 stages for 3 turns.'},
   {id:'fortify_def',name:'Brace',dmg:[0,0],acc:100,pp:8,maxPp:8,desc:'DEF +2 3t | Shop',fx:'fortify_def',tier:0,shopExclusive:true,tipExtra:'Raises your DEF by 2 stages for 3 turns.'},
-  {id:'sacrifice',name:'Blood Price',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Spend 15%HP → ATK+4 3t | Shop',fx:'sacrifice',tier:1,shopExclusive:true,tipExtra:'Sacrifice 15% of current HP to gain +4 ATK stages for 3 turns. High risk, high reward.'},
-  {id:'doubleedge',name:'Double Edge',dmg:[50,70],acc:88,pp:5,maxPp:5,desc:'PWR 60 | 25% recoil | Shop',fx:'doubleedge',tier:2,shopExclusive:true,tipExtra:'Massive damage but you take 25% of damage dealt as recoil.'},
+  {id:'sacrifice',name:'Blood Price',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Spend 15%HP → ATK+4 3t | Shop',fx:'sacrifice',tier:1,shopExclusive:true,tipExtra:'Sacrifice 15% HP for ATK+4 stages 3 turns.'},
+  {id:'doubleedge',name:'Double Edge',dmg:[50,70],acc:88,pp:5,maxPp:5,desc:'PWR 60 | 25% recoil | Shop',fx:'doubleedge',tier:2,shopExclusive:true,tipExtra:'Massive damage but 25% recoil.'},
 ];
 
 BASE_PMOVES.forEach(m=>{
   if(m.shopExclusive)return;
   const s=TIER_DMG_SCALE[m.tier]||1.0;
-  if(m.dmg[0]>0){
-    m.dmg=[Math.round(m.dmg[0]*s),Math.round(m.dmg[1]*s)];
-  }
+  if(m.dmg[0]>0)m.dmg=[Math.round(m.dmg[0]*s),Math.round(m.dmg[1]*s)];
 });
 
-// Enemy themes
 const ENEMY_THEMES=[
-  {name:'Brawler',aiDesc:'Aggressive melee. Prioritizes highest damage. Uses Power Up when healthy. Rarely defends.',buildFn:(wi,ds)=>[
+  {name:'Brawler',aiDesc:'Aggressive melee. Prioritizes highest damage. Uses Power Up when healthy.',buildFn:(wi,ds)=>[
     {name:'Power Slam',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:90,pp:14,maxPp:14,fx:null},
     {name:'Steady Jab',dmg:[Math.round(13*ds),Math.round(19*ds)],acc:100,pp:16,maxPp:16,fx:null},
     {name:'Headbutt',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:12,maxPp:12,fx:null},
     {name:'Power Up',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'fortify_atk'},
   ]},
-  {name:'Leech Vampire',aiDesc:'Sustain fighter. Uses drain when HP drops. Stacks healing. Poison counters its regen.',buildFn:(wi,ds)=>[
+  {name:'Leech Vampire',aiDesc:'Sustain fighter. Uses drain when HP drops. Poison counters regen.',buildFn:(wi,ds)=>[
     {name:'Power Slam',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:90,pp:12,maxPp:12,fx:null},
     {name:'Life Drain',dmg:[Math.round(10*ds),Math.round(17*ds)],acc:85,pp:12,maxPp:12,fx:'drain'},
     {name:'Leech Field',dmg:[Math.round(15*ds),Math.round(21*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
@@ -303,20 +224,20 @@ const ENEMY_THEMES=[
     {name:'Backdraft',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:82,pp:10,maxPp:10,fx:null},
     {name:'Brace',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'fortify_def'},
   ]},
-  {name:'Glass Cannon',aiDesc:'Extreme damage, low DEF. Goes all-in. Kill fast — low HP but can one-shot.',buildFn:(wi,ds)=>[
+  {name:'Glass Cannon',aiDesc:'Extreme damage, low DEF. Kill fast — low HP but can one-shot.',buildFn:(wi,ds)=>[
     {name:'All-In',dmg:[Math.round(36*ds),Math.round(50*ds)],acc:60,pp:6,maxPp:6,fx:null},
     {name:'Sniper Shot',dmg:[Math.round(30*ds),Math.round(42*ds)],acc:80,pp:8,maxPp:8,fx:'highcrit'},
     {name:'Quick Burst',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:95,pp:14,maxPp:14,fx:null},
     {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
   ]},
-  {name:'Stunner',aiDesc:'Tries to stun every other turn. Uses big hits while you\'re paralyzed. Stun-immunity counters it.',buildFn:(wi,ds)=>[
+  {name:'Stunner',aiDesc:'Tries to stun every other turn. Uses big hits while paralyzed.',buildFn:(wi,ds)=>[
     {name:'Shock Blast',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:82,pp:10,maxPp:10,fx:'stun'},
     {name:'Chain Shock',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:88,pp:12,maxPp:12,fx:'stun'},
     {name:'EMP Strike',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:75,pp:8,maxPp:8,fx:'stun'},
     {name:'Overcharge',dmg:[Math.round(30*ds),Math.round(42*ds)],acc:68,pp:5,maxPp:5,fx:null},
     {name:'Steady Jab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:100,pp:12,maxPp:12,fx:null},
   ]},
-  {name:'Toxicologist',aiDesc:'Stacks poison and burn together. Prioritize burst or use immunities to reduce DoT.',buildFn:(wi,ds)=>[
+  {name:'Toxicologist',aiDesc:'Stacks poison and burn together. Prioritize burst or use immunities.',buildFn:(wi,ds)=>[
     {name:'Toxin Dart',dmg:[Math.round(8*ds),Math.round(14*ds)],acc:92,pp:12,maxPp:12,fx:'poison'},
     {name:'Venom Strike',dmg:[Math.round(16*ds),Math.round(24*ds)],acc:88,pp:10,maxPp:10,fx:'poison'},
     {name:'Leech Field',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
@@ -330,102 +251,76 @@ const ENEMY_THEMES=[
     {name:'Bleed Strike',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:90,pp:11,maxPp:11,fx:'bleed'},
     {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
   ]},
-  {name:'Void Piercer',aiDesc:'All attacks bypass DEF. Iron Wall is useless against it. Use high HP + drain to outlast.',buildFn:(wi,ds)=>[
+  {name:'Void Piercer',aiDesc:'All attacks bypass DEF. Iron Wall is useless. Use high HP + drain.',buildFn:(wi,ds)=>[
     {name:'Void Pierce',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:82,pp:10,maxPp:10,fx:'pierce'},
     {name:'Armor Shred',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:11,maxPp:11,fx:'pierce'},
     {name:'Cryo Bolt',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:90,pp:10,maxPp:10,fx:'chill'},
     {name:'Iron Wall',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'ironwall'},
     {name:'Steady Jab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:100,pp:10,maxPp:10,fx:null},
   ]},
-  {name:'Frost Warden',aiDesc:'Slows and freezes. Applies Chill every chance to reduce SPD+ATK. Burn removes chill stacks.',buildFn:(wi,ds)=>[
+  {name:'Frost Warden',aiDesc:'Slows and freezes. Applies Chill every chance. Burn removes chill stacks.',buildFn:(wi,ds)=>[
     {name:'Blizzard',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:12,maxPp:12,fx:'chill'},
     {name:'Ice Lance',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:80,pp:9,maxPp:9,fx:'chill'},
     {name:'Frost Jab',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:96,pp:14,maxPp:14,fx:'chill'},
     {name:'Iron Wall',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'ironwall'},
     {name:'Brace',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'fortify_def'},
   ]},
-  {name:'Phantom Blade',aiDesc:'High evade, crit-focused. Hard to hit but glass. Nullify reflects your strongest attacks.',buildFn:(wi,ds)=>[
+  {name:'Phantom Blade',aiDesc:'High evade, crit-focused. Hard to hit but glass.',buildFn:(wi,ds)=>[
     {name:'Shadow Stab',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:90,pp:12,maxPp:12,fx:'highcrit'},
     {name:'Phantom Slash',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:82,pp:9,maxPp:9,fx:'highcrit'},
     {name:'Nullify',dmg:[0,0],acc:100,pp:3,maxPp:3,fx:'reflect'},
     {name:'Quick Stab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:98,pp:14,maxPp:14,fx:null},
     {name:'Rupture',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:85,pp:8,maxPp:8,fx:'bleed'},
   ],extraEvade:15},
-  {name:'Regenerator',aiDesc:'Tanks and heals back. High DEF + Regen. Use Pierce or DoT — DoT ignores Regen.',buildFn:(wi,ds)=>[
+  {name:'Regenerator',aiDesc:'Tanks and heals back. High DEF + Regen. Use Pierce or DoT.',buildFn:(wi,ds)=>[
     {name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'regen'},
     {name:'Slam',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:88,pp:12,maxPp:12,fx:null},
     {name:'Brace',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'fortify_def'},
     {name:'Heavy Strike',dmg:[Math.round(26*ds),Math.round(36*ds)],acc:80,pp:8,maxPp:8,fx:null},
     {name:'Drain Field',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:85,pp:9,maxPp:9,fx:'drain'},
   ],extraDef:8},
-  {name:'Deathbringer',aiDesc:'Pure offense. No defense. Highest damage every turn. Boost DEF and heal. Kill it fast.',buildFn:(wi,ds)=>[
+  {name:'Deathbringer',aiDesc:'Pure offense. No defense. Highest damage every turn. Boost DEF and heal.',buildFn:(wi,ds)=>[
     {name:'Oblivion',dmg:[Math.round(36*ds),Math.round(50*ds)],acc:64,pp:5,maxPp:5,fx:null},
     {name:'Annihilate',dmg:[Math.round(42*ds),Math.round(58*ds)],acc:58,pp:4,maxPp:4,fx:null},
     {name:'Devastate',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:74,pp:7,maxPp:7,fx:null},
     {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
     {name:'Quick Burst',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:96,pp:14,maxPp:14,fx:null},
   ]},
-  {name:'Armor Shredder',aiDesc:'Stacks DEF debuffs (Rend/Sunder) before unleashing big hits. Your DEF degrades fast. Iron Wall early.',buildFn:(wi,ds)=>[
+  {name:'Armor Shredder',aiDesc:'Stacks DEF debuffs before unleashing big hits. Iron Wall early.',buildFn:(wi,ds)=>[
     {name:'Rend',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:94,pp:14,maxPp:14,fx:'rend'},
     {name:'Sunder',dmg:[Math.round(15*ds),Math.round(22*ds)],acc:88,pp:10,maxPp:10,fx:'sunder'},
     {name:'Expose',dmg:[Math.round(18*ds),Math.round(28*ds)],acc:86,pp:10,maxPp:10,fx:'rend'},
     {name:'Crusher',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:80,pp:7,maxPp:7,fx:null},
   ]},
-  {name:'Bleed Engine',aiDesc:'Applies Bleed stacks then uses fast attacks. With 3 bleed stacks you take 15% HP per round. Kill it before it snowballs.',buildFn:(wi,ds)=>[
-    {name:'Slice',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:92,pp:12,maxPp:12,fx:'bleed'},
-    {name:'Deep Cut',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:86,pp:10,maxPp:10,fx:'bleed'},
-    {name:'Barrage',dmg:[Math.round(9*ds),Math.round(14*ds)],acc:90,pp:12,maxPp:12,fx:'multihit'},
-    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
-    {name:'Bleed Out',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:82,pp:8,maxPp:8,fx:'bleed'},
-  ]},
-  {name:'Mirror Knight',aiDesc:'Relies entirely on Nullify reflect. Uses Iron Wall to survive while waiting to reflect big moves. Use low-power consistent attacks to chip through.',buildFn:(wi,ds)=>[
-    {name:'Nullify',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'reflect'},
-    {name:'Iron Wall',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'ironwall'},
-    {name:'Riposte',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:88,pp:10,maxPp:10,fx:'highcrit'},
-    {name:'Brace',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'fortify_def'},
-    {name:'Steady Jab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:100,pp:14,maxPp:14,fx:null},
-  ],extraDef:6},
-  {name:'Speed Demon',aiDesc:'Extremely high SPD. Acts first nearly every turn. Chain attack snowballs. Use Chill to slow it down.',buildFn:(wi,ds)=>[
+  {name:'Speed Demon',aiDesc:'Extremely high SPD. Chain attack snowballs. Use Chill to slow.',buildFn:(wi,ds)=>[
     {name:'Blitz',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:96,pp:14,maxPp:14,fx:null},
     {name:'Chain Strike',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:92,pp:10,maxPp:10,fx:'chain'},
     {name:'Rapid Fire',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:92,pp:12,maxPp:12,fx:'multihit'},
     {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
   ],extraSpd:8},
-  {name:'Plague Carrier',aiDesc:'Stacks all three DoTs (Burn+Poison+Bleed) simultaneously. Raw damage is low but DoT pressure is immense. Immunities are your best counter.',buildFn:(wi,ds)=>[
-    {name:'Viral Strike',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:90,pp:12,maxPp:12,fx:'poison'},
-    {name:'Ember Spit',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:90,pp:12,maxPp:12,fx:'burn'},
-    {name:'Rending Claw',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:88,pp:12,maxPp:12,fx:'bleed'},
-    {name:'Brace',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_def'},
-    {name:'Venomous Slam',dmg:[Math.round(18*ds),Math.round(28*ds)],acc:82,pp:8,maxPp:8,fx:'leech'},
-  ]},
-  {name:'Executioner',aiDesc:'Deals vastly increased damage when you are below 30% HP — one-shots are possible. Stay healthy, kill fast, or use Phoenix Protocol.',buildFn:(wi,ds)=>[
-    {name:'Finishing Blow',dmg:[Math.round(24*ds),Math.round(36*ds)],acc:88,pp:10,maxPp:10,fx:'executeblow'},
-    {name:'Reaper Strike',dmg:[Math.round(30*ds),Math.round(44*ds)],acc:76,pp:7,maxPp:7,fx:'executeblow'},
-    {name:'Quick Slash',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:98,pp:14,maxPp:14,fx:null},
-    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
-  ]},
 ];
 
 const ENEMY_BASE_POOLS=[
-  {hp:110,atk:9, def:8,  spd:8, evade:0, reward:80, gold:30},
-  {hp:140,atk:12,def:10, spd:10,evade:2, reward:150,gold:45},
-  {hp:170,atk:15,def:12, spd:12,evade:4, reward:230,gold:60},
-  {hp:135,atk:18,def:14, spd:14,evade:6, reward:320,gold:80},
-  {hp:240,atk:22,def:17, spd:16,evade:8, reward:450,gold:100},
-  {hp:295,atk:27,def:21, spd:18,evade:10,reward:620,gold:130},
-  {hp:370,atk:34,def:26, spd:21,evade:13,reward:880,gold:165},
-  {hp:460,atk:42,def:32, spd:24,evade:16,reward:1200,gold:200},
-  {hp:560,atk:52,def:39, spd:26,evade:18,reward:1600,gold:240},
-  {hp:670,atk:62,def:46, spd:28,evade:20,reward:2100,gold:285},
-  {hp:800,atk:74,def:55, spd:30,evade:23,reward:2700,gold:330},
-  {hp:950,atk:88,def:64, spd:32,evade:25,reward:3400,gold:380},
+  {hp:110,atk:9,def:8,spd:8,evade:0,reward:80,gold:30},
+  {hp:140,atk:12,def:10,spd:10,evade:2,reward:150,gold:45},
+  {hp:170,atk:15,def:12,spd:12,evade:4,reward:230,gold:60},
+  {hp:135,atk:18,def:14,spd:14,evade:6,reward:320,gold:80},
+  {hp:240,atk:22,def:17,spd:16,evade:8,reward:450,gold:100},
+  {hp:295,atk:27,def:21,spd:18,evade:10,reward:620,gold:130},
+  {hp:370,atk:34,def:26,spd:21,evade:13,reward:880,gold:165},
+  {hp:460,atk:42,def:32,spd:24,evade:16,reward:1200,gold:200},
+  {hp:560,atk:52,def:39,spd:26,evade:18,reward:1600,gold:240},
+  {hp:670,atk:62,def:46,spd:28,evade:20,reward:2100,gold:285},
+  {hp:800,atk:74,def:55,spd:30,evade:23,reward:2700,gold:330},
+  {hp:950,atk:88,def:64,spd:32,evade:25,reward:3400,gold:380},
 ];
 
 function buildEnemy(waveIdx){
   const poolIdx=waveIdx%ENEMY_BASE_POOLS.length;
   const e=ENEMY_BASE_POOLS[poolIdx];
   const cycle=Math.floor(waveIdx/ENEMY_BASE_POOLS.length);
-  const mkHpScale=Math.pow(7.5,cycle),mkAtkScale=Math.pow(7.5,cycle),mkDefScale=Math.pow(7.5,cycle),mkSpdScale=Math.pow(7.5,cycle),mkRewardScale=Math.pow(7.5,cycle);
+  const mkScale=Math.pow(1.35,cycle);
+  const mkAtkScale=Math.pow(1.28,cycle);
   const withinScale=1+poolIdx*0.06;
   const dmgScale=Math.max(0.8,1+waveIdx*0.07+cycle*0.12);
   const themeIdx=poolIdx%ENEMY_THEMES.length;
@@ -436,27 +331,23 @@ function buildEnemy(waveIdx){
   if(cycle>=2){extraMoves.push({name:'MK Barrage',dmg:[Math.round(16*dmgScale),Math.round(24*dmgScale)],acc:88,pp:10,maxPp:10,fx:'multihit'});extraMoves.push({name:'MK Leech',dmg:[Math.round(14*dmgScale),Math.round(22*dmgScale)],acc:88,pp:8,maxPp:8,fx:'leech'});}
   if(cycle>=3){extraMoves.push({name:'MK Destroyer',dmg:[Math.round(36*dmgScale),Math.round(52*dmgScale)],acc:68,pp:5,maxPp:5,fx:'pierce'});extraMoves.push({name:'MK Nullify',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'reflect'});}
   const allMoves=[...baseMoves,...extraMoves].slice(0,6).map(m=>({...m,pp:m.maxPp}));
-  const baseEvade=(e.evade||0)+(theme.extraEvade||0);
-  const baseSpd=Math.round(e.spd*mkSpdScale+cycle)+(theme.extraSpd||0);
   return{
     name:getEnemyName(waveIdx),theme:theme.name,aiDesc:theme.aiDesc,
-    maxHp:Math.round(e.hp*mkHpScale*withinScale),hp:Math.round(e.hp*mkHpScale*withinScale),
+    maxHp:Math.round(e.hp*mkScale*withinScale),hp:Math.round(e.hp*mkScale*withinScale),
     bAtk:Math.round(e.atk*mkAtkScale*withinScale)+(theme.extraAtk||0),
-    bDef:Math.round(e.def*mkDefScale*withinScale)+(theme.extraDef||0),
-    spd:baseSpd,evade:Math.round(baseEvade*(1+cycle*0.1)),
+    bDef:Math.round(e.def*mkScale*withinScale)+(theme.extraDef||0),
+    spd:Math.round(e.spd*Math.pow(1.1,cycle))+(theme.extraSpd||0),
+    evade:Math.round((e.evade||0)+(theme.extraEvade||0)),
     atkBuf:0,defBuf:0,defMult:1,atkBufTurns:0,defBufTurns:0,critBonus:0,defDebuf:0,defDebufTurns:0,
     status:{burn:0,stun:0,regen:0,reflect:0,chill:0,poison:0,bleed:0,tauntTurns:0,shieldTurns:0},
-    special:null,
-    reward:Math.round(e.reward*mkRewardScale*(1+poolIdx*0.05)),
-    gold:Math.round(e.gold*mkRewardScale*(1+poolIdx*0.05)),
+    reward:Math.round(e.reward*Math.pow(1.5,cycle)*(1+poolIdx*0.05)),
+    gold:Math.round(e.gold*Math.pow(1.4,cycle)*(1+poolIdx*0.05)),
     moves:allMoves,cycle,waveIdx,
     pendingStatus:{burn:0,poison:0,bleed:0,regen:0,chill:0},
   };
 }
 
-// ── STAT FORMULAS ──────────────────────────────────────────────────────────────
 const ATK_PIERCE_BASE=16;
-
 const getAtk=c=>{
   let a=Math.max(1,Math.round(c.bAtk*(1+c.atkBuf*0.22)));
   if(G.player===c&&c.berserk&&c.hp/c.maxHp<0.3)a=Math.round(a*2);
@@ -466,11 +357,10 @@ const getAtk=c=>{
   if(G.deathmarkActive&&c===G.player)a=Math.round(a*1.2);
   return a;
 };
-
 const getDef=c=>{
   let d=Math.max(1,Math.round(c.bDef*(1+c.defBuf*0.22)*(c.defMult||1)));
   if(c.defDebuf&&c.defDebuf>0)d=Math.max(1,Math.round(d*(1-c.defDebuf*0.12)));
-  if(G.player===c&&G.traits.find(t=>t.id==='t_tough'))d+=5;
+  if(G.traits.find(t=>t.id==='t_tough')&&c===G.player)d+=5;
   if(G.traits.find(t=>t.id==='t_tank')&&c===G.player)d=Math.round(d*1.10);
   return d;
 };
@@ -487,18 +377,13 @@ function calcDmg(att,def,mv,ignDef,mgMult=1.0){
   let base=rnd(mv.dmg[0],mv.dmg[1]);
   const atkVal=getAtk(att);
   let dmg;
-  if(ignDef){
-    dmg=Math.max(1,Math.round(base*(atkVal/ATK_PIERCE_BASE)*mgMult));
-  }else{
-    const defVal=getDef(def);
-    dmg=Math.max(1,Math.round(base*(atkVal/defVal)*mgMult));
-  }
+  if(ignDef)dmg=Math.max(1,Math.round(base*(atkVal/ATK_PIERCE_BASE)*mgMult));
+  else{const defVal=getDef(def);dmg=Math.max(1,Math.round(base*(atkVal/defVal)*mgMult));}
   const critChance=mv.fx==='highcrit'?clamp(getCrit(att)+30,0,CRIT_CAP):getCrit(att);
   const crit=Math.random()*100<critChance;
   if(crit)dmg=Math.round(dmg*(att.critMult||1.5));
   if(att.execute&&def.hp/def.maxHp<0.25)dmg=Math.round(dmg*1.6);
   if(G.traits.find(t=>t.id==='t_momentum')&&att===G.player)dmg=Math.round(dmg*(1+(G.momentumCount||0)*0.05));
-  if(def.status&&def.status.poison>0)dmg=Math.round(dmg*1.08);
   if(G.deathmarkActive&&att===G.player)dmg=Math.round(dmg*1.2);
   if(G.speedkillUpg&&att===G.player&&playerGoesFirst())dmg=Math.round(dmg*1.15);
   if(G.traits.find(t=>t.id==='t_tank')&&def===G.player)dmg=Math.round(dmg*0.90);
@@ -508,10 +393,9 @@ function calcDmg(att,def,mv,ignDef,mgMult=1.0){
 
 function expectedDmg(att,def,mv){
   if(!mv.dmg||mv.dmg[0]===0)return 0;
+  if(mv.fx==='gamble')return Math.round((mv.dmg[0]+mv.dmg[1])/2*(getAtk(att)/getDef(def))*(mv.acc/100));
   const avg=(mv.dmg[0]+mv.dmg[1])/2;
-  let r;
-  if(mv.fx==='pierce'){r=getAtk(att)/ATK_PIERCE_BASE;}
-  else{r=getAtk(att)/getDef(def);}
+  const r=mv.fx==='pierce'?getAtk(att)/ATK_PIERCE_BASE:getAtk(att)/getDef(def);
   const cc=clamp(getCrit(att),5,CRIT_CAP)/100;
   const ed=Math.round(avg*r*(1-cc+cc*(att.critMult||1.5)));
   const hit=mv.acc/100;
@@ -537,22 +421,18 @@ function getRadarData(){
   };
 }
 
-let G={};
-let radarChart=null;
-
+let G={};let radarChart=null;
 function updateRadar(){
   const d=getRadarData();
   if(!radarChart){
     const ctx=document.getElementById('radarChart').getContext('2d');
-    radarChart=new Chart(ctx,{type:'radar',data:{labels:['ATK','DEF','SPD','CRIT','EVADE','HP'],datasets:[{label:'You',data:d.player,borderColor:'rgba(0,0,0,0.85)',backgroundColor:'rgba(0,0,0,0.1)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'rgba(0,0,0,0.85)'},{label:'Opponent',data:d.ai,borderColor:'rgba(150,150,150,0.85)',backgroundColor:'rgba(150,150,150,0.1)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'rgba(150,150,150,0.85)',borderDash:[4,3]}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{r:{min:0,max:100,ticks:{display:true,stepSize:25,font:{size:8},color:'#999',backdropColor:'transparent'},grid:{color:'rgba(0,0,0,0.12)'},angleLines:{color:'rgba(0,0,0,0.12)'},pointLabels:{font:{size:10,family:'Arial'},color:'#333'}}},animation:{duration:300}}});
-  }else{
-    radarChart.data.datasets[0].data=d.player;
-    radarChart.data.datasets[1].data=d.ai;
-    radarChart.update('none');
-  }
+    radarChart=new Chart(ctx,{type:'radar',data:{labels:['ATK','DEF','SPD','CRIT','EVADE','HP'],datasets:[
+      {label:'You',data:d.player,borderColor:'rgba(0,0,0,0.85)',backgroundColor:'rgba(0,0,0,0.1)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'rgba(0,0,0,0.85)'},
+      {label:'Opp',data:d.ai,borderColor:'rgba(150,150,150,0.85)',backgroundColor:'rgba(150,150,150,0.1)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'rgba(150,150,150,0.85)',borderDash:[4,3]}
+    ]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{r:{min:0,max:100,ticks:{display:true,stepSize:25,font:{size:8},color:'#999',backdropColor:'transparent'},grid:{color:'rgba(0,0,0,0.12)'},angleLines:{color:'rgba(0,0,0,0.12)'},pointLabels:{font:{size:10},color:'#333'}}},animation:{duration:300}}});
+  }else{radarChart.data.datasets[0].data=d.player;radarChart.data.datasets[1].data=d.ai;radarChart.update('none');}
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
 function initGame(){
   G={
     wave:1,turn:1,phase:'player',busy:false,
@@ -562,8 +442,10 @@ function initGame(){
     shop:rollShop(),
     traits:[],chainCount:0,momentumCount:0,
     nextMoveAccBonus:0,
+    nextMoveEffectGuarantee:false,
     deathmarkActive:false,deathmarkTurns:0,
-    blurSteelUpg:false,speedkillUpg:false,dotMasterUpg:false,chainBoosted:false,pierceDegrade:false,bleedOutUpg:false,hemorrhageUpg:false,
+    blurSteelUpg:false,speedkillUpg:false,dotMasterUpg:false,chainBoosted:false,pierceDegrade:false,
+    jackpotSynergy:false,
     player:{
       name:'Unit Alpha',maxHp:130,hp:130,
       bAtk:10,bDef:10,spd:10,
@@ -594,10 +476,7 @@ function initGame(){
   updateEnemyMovesPanel();updateAIStrategyBox();
 }
 
-function getMoveById(id){
-  const m=BASE_PMOVES.find(x=>x.id===id);
-  return m?{...m,pp:m.maxPp}:null;
-}
+function getMoveById(id){const m=BASE_PMOVES.find(x=>x.id===id);return m?{...m,pp:m.maxPp}:null;}
 
 function renderAll(){
   renderFighter('player');renderFighter('ai');
@@ -606,7 +485,6 @@ function renderAll(){
   document.getElementById('r-turn').textContent=G.turn;
   document.getElementById('r-level').textContent=G.level;
   document.getElementById('r-exp').textContent=G.exp+'/'+G.expNext;
-  document.getElementById('r-items').textContent='H:'+G.items.heal+' E:'+G.items.ether+' S:'+G.items.boost+(G.items.clens?' CL:'+G.items.clens:'');
   document.getElementById('score-top').textContent=G.score.toLocaleString();
   document.getElementById('gold-top').textContent=G.gold;
   document.getElementById('gold-display').textContent=G.gold;
@@ -615,19 +493,15 @@ function renderAll(){
   document.getElementById('round-lbl').textContent=G.turn;
   document.getElementById('arena-wave').textContent='Wave '+G.wave;
   const diffNames=['Novice','Easy','Normal','Hard','Expert','Elite','Master','Legendary','Apex','Infernal','Transcendent','Divine'];
-  const di=clamp(G.wave-1,0,diffNames.length-1);
-  document.getElementById('diff-top').textContent=diffNames[di];
-  document.getElementById('diff-inline').textContent=diffNames[di];
-  document.getElementById('turn-line').textContent=G.phase==='player'?'Turn '+G.turn+' — your move':G.phase==='ai'?'Turn '+G.turn+' — opponent\'s move':'Turn '+G.turn+' — battle over';
+  document.getElementById('diff-top').textContent=diffNames[clamp(G.wave-1,0,diffNames.length-1)];
+  document.getElementById('turn-line').textContent=G.phase==='player'?'Turn '+G.turn+' — your move':G.phase==='ai'?'Turn '+G.turn+" — opponent's move":'Turn '+G.turn+' — battle over';
   updateProbTable();updateRadar();
   renderPendingEffects();
 }
 
 function renderPendingEffects(){
   ['player','ai'].forEach(who=>{
-    const c=G[who];
-    const el=document.getElementById('pending-'+who);
-    if(!el)return;
+    const c=G[who];const el=document.getElementById('pending-'+who);if(!el)return;
     const parts=[];
     if(c.pendingStatus){
       if(c.pendingStatus.burn>0)parts.push('🔥'+c.pendingStatus.burn+'t');
@@ -654,20 +528,17 @@ function renderFighter(who){
   if(c.defDebuf>0)parts.push('DEF-'+c.defDebuf+(c.defDebufTurns>0?' '+c.defDebufTurns+'t':''));
   if(c.defMult&&c.defMult>1)parts.push('WALL');
   if(c.status){
-    if(c.status.burn>0)parts.push('BURN');
-    if(c.status.stun>0)parts.push('STUN');
-    if(c.status.regen>0)parts.push('REGEN');
-    if(c.status.reflect>0)parts.push('REFLECT');
-    if(c.status.chill>0)parts.push('CHILL');
-    if(c.status.poison>0)parts.push('PSNT');
-    if(c.status.bleed>0)parts.push('BLEED');
-    if(c.status.tauntTurns>0)parts.push('TAUNTED');
+    if(c.status.burn>0)parts.push('BURN');if(c.status.stun>0)parts.push('STUN');
+    if(c.status.regen>0)parts.push('REGEN');if(c.status.reflect>0)parts.push('REFLECT');
+    if(c.status.chill>0)parts.push('CHILL');if(c.status.poison>0)parts.push('PSNT');
+    if(c.status.bleed>0)parts.push('BLEED');if(c.status.tauntTurns>0)parts.push('TAUNTED');
     if(who==='player'&&c.status.stimTurns>0)parts.push('STIM '+c.status.stimTurns+'t');
     if(who==='player'&&c.status.shieldTurns>0)parts.push('SHIELD '+c.status.shieldTurns+'t');
     if(who==='player'&&c.status.wraithTurns>0)parts.push('WRAITH '+c.status.wraithTurns+'t');
   }
   if(who==='player'&&c.overload&&c.overloadStacks>0)parts.push('OVL+'+c.overloadStacks);
   if(who==='player'&&G.nextMoveAccBonus>0)parts.push('LENS+'+G.nextMoveAccBonus+'%');
+  if(who==='player'&&G.nextMoveEffectGuarantee)parts.push('LENS-EFFECT');
   if(who==='player'&&G.deathmarkActive)parts.push('MARK '+G.deathmarkTurns+'t');
   if(who==='player'&&c.overwatchReady)parts.push('OVERWATCH');
   if(who==='ai'&&c.cycle>0)parts.push('MK'+(c.cycle+1));
@@ -676,54 +547,41 @@ function renderFighter(who){
 }
 
 function renderMoves(){
-  const grid=document.getElementById('moves-grid');
-  grid.innerHTML='';
+  const grid=document.getElementById('moves-grid');grid.innerHTML='';
   G.player.moves.forEach(mv=>{
     const ppZero=mv.pp<=0&&!(G.player.lastStand&&G.player.hp/G.player.maxHp<0.2);
-    const wrap=document.createElement('div');
-    wrap.className='tooltip-wrap';
-    const btn=document.createElement('button');
-    btn.className='mbtn';
+    const wrap=document.createElement('div');wrap.className='tooltip-wrap';
+    const btn=document.createElement('button');btn.className='mbtn';
     btn.disabled=ppZero||G.busy||G.phase!=='player';
     btn.innerHTML='<span class="mbtn-name">'+mv.name+'</span><span class="mbtn-sub">'+mv.desc+'</span><span class="mbtn-pp">PP '+mv.pp+'/'+mv.maxPp+'</span>';
     btn.addEventListener('click',()=>playerMove(mv.name));
-    const tip=document.createElement('div');
-    tip.className='tooltip-box';
+    const tip=document.createElement('div');tip.className='tooltip-box';
     const expD=expectedDmg(G.player,G.ai,mv);
-    const tierLabel=['T0','T1','T2','T3'][mv.tier||0];
-    const pierceNote=mv.fx==='pierce'?'\n[Pierce: uses ATK/'+ATK_PIERCE_BASE+' scalar, ignores DEF]':'';
-    tip.textContent=mv.name+' ['+tierLabel+']\n'+(mv.dmg&&mv.dmg[0]>0?'Damage: '+mv.dmg[0]+'-'+mv.dmg[1]+'\n':'')+'Accuracy: '+mv.acc+'%\nPP: '+mv.pp+'/'+mv.maxPp+(expD>0?'\nE[dmg]: '+expD:'')+pierceNote+'\n\n'+(mv.tipExtra||mv.desc);
-    wrap.appendChild(btn);wrap.appendChild(tip);
-    grid.appendChild(wrap);
+    tip.textContent=mv.name+'\n'+(mv.dmg&&mv.dmg[0]>0?'Damage: '+mv.dmg[0]+'-'+mv.dmg[1]+'\n':'')+'Accuracy: '+mv.acc+'%\nPP: '+mv.pp+'/'+mv.maxPp+(expD>0?'\nE[dmg]: '+expD:'')+'\n\n'+(mv.tipExtra||mv.desc);
+    wrap.appendChild(btn);wrap.appendChild(tip);grid.appendChild(wrap);
   });
 }
 
 function renderItems(){
-  const row=document.getElementById('item-row');
-  row.innerHTML='';
+  const row=document.getElementById('item-row');row.innerHTML='';
   const ITEM_DEFS=[
     {key:'heal',label:'Medpack',tip:'Restores '+(35+G.level*2+(G.traits.find(t=>t.id==='t_medic')?15:0))+' HP instantly.'},
     {key:'ether',label:'Ether',tip:'Fully restores all move PP.'},
     {key:'boost',label:'Stim',tip:'Boosts ATK by 40% for 3 turns.'},
     {key:'shield',label:'Shield Cell',tip:'Doubles DEF for 2 turns.'},
-    {key:'flash',label:'Flash Grenade',tip:'Guarantees opponent is stunned next turn.'},
-    {key:'clens',label:'Crit Lens',tip:'+20% accuracy on your next move.'},
+    {key:'flash',label:'Flash Grenade',tip:'Guarantees opponent stunned next turn.'},
+    {key:'clens',label:'Crit Lens',tip:'+20% ACC AND guarantees next status effect on your next move.'},
   ];
   ITEM_DEFS.forEach(({key,label,tip})=>{
     const n=G.items[key]||0;
     if(n<=0&&['shield','flash','clens'].includes(key))return;
-    const wrap=document.createElement('div');
-    wrap.className='tooltip-wrap';
-    const btn=document.createElement('button');
-    btn.id='item-'+key;
+    const wrap=document.createElement('div');wrap.className='tooltip-wrap';
+    const btn=document.createElement('button');btn.id='item-'+key;
     btn.disabled=n<=0||G.busy||G.phase!=='player';
     btn.textContent=label+' ('+n+')';
     btn.addEventListener('click',()=>useItem(key));
-    const tipEl=document.createElement('div');
-    tipEl.className='tooltip-box';
-    tipEl.textContent=label+' (x'+n+')\n'+tip;
-    wrap.appendChild(btn);wrap.appendChild(tipEl);
-    row.appendChild(wrap);
+    const tipEl=document.createElement('div');tipEl.className='tooltip-box';tipEl.textContent=label+' (x'+n+')\n'+tip;
+    wrap.appendChild(btn);wrap.appendChild(tipEl);row.appendChild(wrap);
   });
 }
 
@@ -751,26 +609,18 @@ function updateProbTable(){
 }
 
 function updateEnemyMovesPanel(){
-  const el=document.getElementById('enemy-move-list');
-  if(!el)return;
-  el.innerHTML='';
+  const el=document.getElementById('enemy-move-list');if(!el)return;el.innerHTML='';
   G.ai.moves.forEach(mv=>{
-    const d=document.createElement('div');
-    d.className='enemy-move-row';
-    const dmgStr=mv.dmg&&mv.dmg[0]>0?mv.dmg[0]+'-'+mv.dmg[1]+' dmg':'—';
-    const fxStr=mv.fx?(' | '+mv.fx):'';
-    d.innerHTML='<b>'+mv.name+'</b> '+dmgStr+fxStr+' PP:'+mv.pp+'/'+mv.maxPp+' ACC:'+mv.acc+'%';
+    const d=document.createElement('div');d.className='enemy-move-row';
+    d.innerHTML='<b>'+mv.name+'</b> '+(mv.dmg&&mv.dmg[0]>0?mv.dmg[0]+'-'+mv.dmg[1]+' dmg':'—')+(mv.fx?' | '+mv.fx:'')+' PP:'+mv.pp+'/'+mv.maxPp;
     el.appendChild(d);
   });
 }
 
 function updateAIStrategyBox(){
-  const el=document.getElementById('ai-strategy-box');
-  if(!el)return;
+  const el=document.getElementById('ai-strategy-box');if(!el)return;
   const e=G.ai;
-  const cycleNote=e.cycle>0?' [MK'+(e.cycle+1)+']':'';
-  const evadeNote=e.evade>0?'\nEvade: '+e.evade+'% (more inverted keys)':'';
-  el.textContent='['+e.name+cycleNote+']\nTheme: '+e.theme+'\n\n'+(e.aiDesc||'Unknown.')+evadeNote;
+  el.textContent='['+e.name+(e.cycle>0?' MK'+(e.cycle+1):'')+']'+'\nTheme: '+e.theme+'\n\n'+(e.aiDesc||'Unknown.'+(e.evade>0?'\nEvade: '+e.evade+'%':''));
 }
 
 function renderTraits(){
@@ -781,9 +631,7 @@ function renderTraits(){
 
 function updateWaveInfo(){
   const e=G.ai;
-  const cycleTag=e.cycle>0?' [MK'+(e.cycle+1)+']':'';
-  const mkNote=e.cycle>0?'\nMK: ATK×'+Math.pow(1.28,e.cycle).toFixed(2)+' HP×'+Math.pow(1.35,e.cycle).toFixed(2):'';
-  document.getElementById('wave-info').innerHTML='<b>'+e.name+'</b>'+cycleTag+'<br>Theme: '+e.theme+'<br>HP: '+e.maxHp+' | ATK: '+e.bAtk+' | DEF: '+e.bDef+'<br>SPD: '+e.spd+' | Evade: '+e.evade+'%'+(mkNote?'<br><span style="color:#c00;font-size:10px">'+mkNote+'</span>':'');
+  document.getElementById('wave-info').innerHTML='<b>'+e.name+'</b>'+(e.cycle>0?' [MK'+(e.cycle+1)+']':'')+'<br>Theme: '+e.theme+'<br>HP: '+e.maxHp+' | ATK: '+e.bAtk+' | DEF: '+e.bDef+'<br>SPD: '+e.spd+' | Evade: '+e.evade+'%';
 }
 
 function setMsg(txt,cur=false){
@@ -792,8 +640,7 @@ function setMsg(txt,cur=false){
 }
 function addLog(txt,cls=''){
   const box=document.getElementById('logbox');
-  const el=document.createElement('span');
-  el.className='le '+cls;el.textContent=txt;
+  const el=document.createElement('span');el.className='le '+cls;el.textContent=txt;
   box.appendChild(el);box.scrollTop=box.scrollHeight;
 }
 function clearLog(){document.getElementById('logbox').innerHTML='';}
@@ -811,12 +658,82 @@ function setMovesEnabled(on){
 function showPop(elId,amt,heal){
   const el=document.getElementById(elId);if(!el)return;
   const r=el.getBoundingClientRect();
-  const d=document.createElement('div');
-  d.className='dpop';d.textContent=heal?'+'+amt:'-'+amt;
+  const d=document.createElement('div');d.className='dpop';d.textContent=heal?'+'+amt:'-'+amt;
   d.style.color=heal?'#000':'#555';
-  d.style.left=(r.left+r.width/2-14+scrollX)+'px';
-  d.style.top=(r.top-6+scrollY)+'px';
+  d.style.left=(r.left+r.width/2-14+scrollX)+'px';d.style.top=(r.top-6+scrollY)+'px';
   document.body.appendChild(d);setTimeout(()=>d.remove(),1150);
+}
+
+// ── GAMBLER'S EDGE ──────────────────────────────────────────────────────────
+async function execGamble(attKey,defKey,mgMult=1.0){
+  const att=G[attKey],def=G[defKey];
+  const synergy=G.jackpotSynergy;
+  const lensForce=G.nextMoveEffectGuarantee;
+  if(lensForce)G.nextMoveEffectGuarantee=false;
+
+  // Determine outcome — lens forces JACKPOT
+  const roll=lensForce?0:Math.random();
+  let outcome;
+  if(roll<0.20)outcome='JACKPOT';
+  else if(roll<0.45)outcome='DRAIN';
+  else if(roll<0.68)outcome='DOUBLE';
+  else if(roll<0.85)outcome='SHIELD';
+  else outcome='BUST';
+
+  const mv={dmg:[Math.round(20*(1+(getAtk(att)/getDef(def)))),Math.round(40*(1+(getAtk(att)/getDef(def))))],acc:90,fx:null};
+
+  if(outcome==='JACKPOT'){
+    const mult=synergy?3.0:2.0;
+    const base=rnd(mv.dmg[0],mv.dmg[1]);
+    const dmg=Math.max(1,Math.round(base*mult*mgMult));
+    def.hp-=dmg;checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
+    setMsg((lensForce?'LENS → ':'')+'JACKPOT! Massive crit hit! '+dmg+' damage!');
+    addLog('> Gamble: JACKPOT'+(lensForce?' (LENS)':'')+(synergy?' [SYNERGY x3]':'')+' → '+dmg+'dmg','crit');
+    renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;
+    await delay(900);return;
+  }
+  if(outcome==='DRAIN'){
+    const mult=synergy?1.4:1.0;
+    const base=rnd(mv.dmg[0],mv.dmg[1]);
+    const dmg=Math.max(1,Math.round(base*mult*mgMult));
+    const heal=synergy?Math.round(dmg*0.75):Math.round(dmg*0.50);
+    def.hp-=dmg;att.hp=Math.min(att.maxHp,att.hp+heal);
+    checkPhoenix(def);showPop(defKey+'-fill',dmg,false);showPop(attKey+'-fill',heal,true);
+    setMsg('DRAIN! '+dmg+' dmg, +'+heal+' HP!');
+    addLog('> Gamble: DRAIN'+(synergy?' [SYNERGY 75% heal]':'')+' → '+dmg+'dmg +'+heal+'HP','hit');
+    renderFighter(defKey);renderFighter(attKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;
+    await delay(900);return;
+  }
+  if(outcome==='DOUBLE'){
+    let total=0;setMsg('DOUBLE HIT!');await delay(280);
+    const hits=synergy?3:2;
+    for(let i=0;i<hits;i++){
+      const base=rnd(mv.dmg[0],mv.dmg[1]);
+      const dmg=Math.max(1,Math.round(base*mgMult));
+      def.hp-=dmg;total+=dmg;showPop(defKey+'-fill',dmg,false);
+      addLog('  gamble hit '+(i+1)+': '+dmg,'hit');
+      renderFighter(defKey);await delay(280);
+    }
+    setMsg((synergy?'TRIPLE':'DOUBLE')+' HIT! '+total+' total!');
+    gainExpScore(total,attKey);if(attKey==='player')G.momentumCount++;
+    return;
+  }
+  if(outcome==='SHIELD'){
+    const shieldTurns=synergy?3:2;
+    att.defMult=2;att.status.shieldTurns=shieldTurns;
+    const base=rnd(Math.round(mv.dmg[0]*0.3),Math.round(mv.dmg[1]*0.3));
+    const dmg=Math.max(1,Math.round(base*mgMult));
+    def.hp-=dmg;checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
+    setMsg('SHIELD! DEF x2 for '+shieldTurns+'t + '+dmg+' dmg!');
+    addLog('> Gamble: SHIELD'+(synergy?' [SYNERGY 3t]':'')+' → DEF x2 '+shieldTurns+'t + '+dmg+'dmg','sys');
+    renderFighter(defKey);renderFighter(attKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;
+    await delay(900);return;
+  }
+  // BUST
+  const bustMsg=synergy?'BUST — but Jackpot Synergy mitigates: next Gamble is free PP!':'BUST — no effect!';
+  if(synergy){const mv2=G.player.moves.find(m=>m.id==='gamble');if(mv2)mv2.pp=Math.min(mv2.pp+1,mv2.maxPp);}
+  setMsg(bustMsg);addLog('> Gamble: BUST'+(synergy?' [SYNERGY: +1 PP recovered]':''),'miss');G.momentumCount=0;
+  await delay(900);
 }
 
 // ── EXECUTE MOVE ──────────────────────────────────────────────────────────────
@@ -826,6 +743,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   const lastStandActive=attKey==='player'&&G.player.lastStand&&G.player.hp/G.player.maxHp<0.2;
   if(mv.pp>0&&!lastStandActive)mv.pp--;
 
+  // Apply lens accuracy bonus
   let effectiveAcc=mv.acc;
   if(attKey==='player'&&G.nextMoveAccBonus>0){
     effectiveAcc=Math.min(100,mv.acc+G.nextMoveAccBonus);
@@ -833,6 +751,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     renderFighter('player');
   }
 
+  // Reflect check
   if(def.status&&def.status.reflect>0&&mv.dmg&&mv.dmg[0]>0){
     def.status.reflect=0;setMsg(att.name+' used '+moveName+' — REFLECTED!');
     addLog('> '+att.name+': '+moveName+' -> REFLECTED','debuff');
@@ -841,17 +760,15 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     await delay(900);return;
   }
 
+  // Stun check
   if(att.status&&att.status.stun>0){
     att.status.stun=0;setMsg(att.name+' is stunned and cannot move!');
     addLog('> '+att.name+': STUNNED — skipped','debuff');await delay(800);return;
   }
 
+  // Taunt override
   if(attKey==='ai'&&G.ai.status&&G.ai.status.tauntTurns>0){
     const bigMv=G.ai.moves.filter(m=>m.pp>0&&m.dmg&&m.dmg[0]>0).sort((a,b)=>b.dmg[1]-a.dmg[1])[0];
-    if(G.ai.name==='Phantom Blade'){
-      const forcedMove=G.ai.moves.find(m=>m.pp>0&&m.name==='Nullify');
-      if(forcedMove){G.ai.status.tauntTurns=Math.max(0,G.ai.status.tauntTurns-1);return execMove(attKey,defKey,forcedMove.name,mgMult);}
-    }
     if(bigMv&&bigMv.name!==moveName){G.ai.status.tauntTurns=Math.max(0,G.ai.status.tauntTurns-1);return execMove(attKey,defKey,bigMv.name,mgMult);}
     G.ai.status.tauntTurns=Math.max(0,G.ai.status.tauntTurns-1);
   }
@@ -860,15 +777,26 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     setMsg(att.name+' used '+moveName+' — FAILED!');
     addLog('> '+att.name+': '+moveName+' -> FAILED (minigame)','miss');
     if(attKey==='player')G.momentumCount=0;
+    // Consume lens effect guarantee even on fail
+    if(attKey==='player')G.nextMoveEffectGuarantee=false;
     await delay(700);return;
   }
 
+  // Evade check
   if(attKey==='player'){
     const aiEv=getAIEvade(G.ai);
-    if(aiEv>0&&Math.random()*100<aiEv){setMsg(G.ai.name+' evaded '+moveName+'!');addLog('> '+G.ai.name+' EVADED '+moveName,'miss');G.momentumCount=0;await delay(700);return;}
+    if(aiEv>0&&Math.random()*100<aiEv){setMsg(G.ai.name+' evaded '+moveName+'!');addLog('> '+G.ai.name+' EVADED '+moveName,'miss');G.momentumCount=0;G.nextMoveEffectGuarantee=false;await delay(700);return;}
   }else{
     const pEv=getEvade(G.player);
-    if(pEv>0&&Math.random()*100<pEv){setMsg(G.player.name+' evaded '+G.ai.name+'\'s '+moveName+'!');addLog('> '+G.player.name+' EVADED '+moveName,'miss');await delay(700);return;}
+    if(pEv>0&&Math.random()*100<pEv){setMsg(G.player.name+' evaded '+G.ai.name+"'s "+moveName+'!');addLog('> '+G.player.name+' EVADED '+moveName,'miss');await delay(700);return;}
+  }
+
+  // Helper: consume and return lens guarantee flag
+  const consumeLens=()=>{const v=G.nextMoveEffectGuarantee;if(attKey==='player')G.nextMoveEffectGuarantee=false;return v;};
+
+  // GAMBLER'S EDGE
+  if(mv.fx==='gamble'){
+    await execGamble(attKey,defKey,mgMult);return;
   }
 
   if(mv.fx==='fortify_atk'){att.atkBuf=Math.min(8,att.atkBuf+2);att.atkBufTurns=3;setMsg(att.name+' used Power Up! ATK+2 3t!');addLog('> '+att.name+': Power Up -> ATK+2 3t','sys');renderFighter(attKey);await delay(750);return;}
@@ -898,8 +826,9 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;await delay(900);return;
   }
   if(mv.fx==='sweepkick'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    if(Math.random()<0.30)def.pendingStatus.chill=2;
+    if(guarantee||Math.random()<0.30)def.pendingStatus.chill=2;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': Sweep Kick! '+dmg+'dmg'+(def.pendingStatus.chill>0?' + slow!':'')+(crit?' Crit!':''));
     addLog('> '+att.name+': Sweep -> '+dmg+'dmg'+(def.pendingStatus.chill>0?' CHILL':'')+(crit?' CRIT':''),crit?'crit':'hit');
@@ -923,17 +852,17 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
 
   if(mv.fx==='drain'||mv.fx==='leech'){
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;const heal=Math.round(dmg*0.5);att.hp=Math.min(att.maxHp,att.hp+heal);
-    if(mv.fx==='leech'){if(!(defKey==='player'&&G.player.poisonImmune))def.pendingStatus.poison=3;}
+    if(mv.fx==='leech'){const guarantee=consumeLens();if(guarantee||!(defKey==='player'&&G.player.poisonImmune))def.pendingStatus.poison=3;}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);showPop(attKey+'-fill',heal,true);
-    const tag=mv.fx==='leech'?' +PSNT(end-rnd)':'';
-    setMsg(att.name+': '+moveName+'. Drained '+dmg+'! +'+heal+'HP.'+(crit?' Crit!':'')+tag);
-    addLog('> '+att.name+': '+moveName+' -> '+dmg+' drain (+'+heal+'HP)'+(crit?' CRIT':'')+tag,crit?'crit':'hit');
+    setMsg(att.name+': '+moveName+'. Drained '+dmg+'! +'+heal+'HP.'+(crit?' Crit!':''));
+    addLog('> '+att.name+': '+moveName+' -> '+dmg+' drain (+'+heal+'HP)'+(crit?' CRIT':''),crit?'crit':'hit');
     renderFighter(defKey);renderFighter(attKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;await delay(900);return;
   }
 
   if(mv.fx==='burn'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    if(!(defKey==='player'&&G.player.burnImmune))def.pendingStatus.burn=3;
+    if(guarantee||!(defKey==='player'&&G.player.burnImmune))def.pendingStatus.burn=3;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. '+(def.pendingStatus.burn?def.name+' BURNS!':'')+(crit?' Crit!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg'+(def.pendingStatus.burn?' BURN':'')+(crit?' CRIT':''),crit?'crit':'hit');
@@ -941,8 +870,9 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
 
   if(mv.fx==='chill'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    if(!(defKey==='player'&&G.player.chillImmune))def.pendingStatus.chill=3;
+    if(guarantee||!(defKey==='player'&&G.player.chillImmune))def.pendingStatus.chill=3;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. '+def.name+' CHILLED!'+(crit?' Crit!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg CHILL'+(crit?' CRIT':''),crit?'crit':'hit');
@@ -950,8 +880,9 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
 
   if(mv.fx==='poison'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    if(!(defKey==='player'&&G.player.poisonImmune))def.pendingStatus.poison=4;
+    if(guarantee||!(defKey==='player'&&G.player.poisonImmune))def.pendingStatus.poison=4;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. '+(def.pendingStatus.poison?def.name+' POISONED!':'Resisted!')+(crit?' Crit!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg'+(def.pendingStatus.poison?' PSNT':'')+(crit?' CRIT':''),crit?'crit':'hit');
@@ -959,6 +890,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
 
   if(mv.fx==='bleed'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     def.pendingStatus.bleed=3;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
@@ -968,9 +900,10 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
 
   if(mv.fx==='stun'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     const immune=defKey==='player'&&(G.player.stunImmune||G.traits.find(t=>t.id==='t_ironwill'));
-    if(!immune&&Math.random()<0.4)def.status.stun=1;
+    if(!immune&&(guarantee||Math.random()<0.4))def.status.stun=1;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. '+dmg+'dmg!'+(def.status.stun?' STUNNED!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg'+(def.status.stun?' STUN':'')+(crit?' CRIT':''),def.status.stun?'debuff':crit?'crit':'hit');
@@ -983,12 +916,19 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. Bypassed armor! '+dmg+'dmg!'+(crit?' Crit!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg (PIERCE)'+(crit?' CRIT':''),crit?'crit':'hit');
+    // Apply mirror reflection after pierce too
+    if(defKey==='player'&&G.player.reflect20)att.hp-=Math.round(dmg*0.2);
+    if(defKey==='player'&&G.player.reflect10)att.hp-=Math.round(dmg*0.1);
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;await delay(900);return;
   }
 
   if(mv.fx==='highcrit'){
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
-    def.hp-=dmg;if(att.vamp){const h=Math.round(dmg*(att.vampBonus||0.15));att.hp=Math.min(att.maxHp,att.hp+h);}
+    def.hp-=dmg;
+    if(att.vamp){const h=Math.round(dmg*(att.vampBonus||0.15));att.hp=Math.min(att.maxHp,att.hp+h);}
+    // Mirror reflection for highcrit too
+    if(defKey==='player'&&G.player.reflect20)att.hp-=Math.round(dmg*0.2);
+    if(defKey==='player'&&G.player.reflect10)att.hp-=Math.round(dmg*0.1);
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+' — '+dmg+'dmg!'+(crit?' CRITICAL HIT!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg'+(crit?' CRIT':''),crit?'crit':'hit');
@@ -1008,8 +948,10 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
 
   if(mv.fx==='glacial'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    const froze=Math.random()<0.5;if(froze&&!(defKey==='player'&&G.player.stunImmune))def.status.stun=1;
+    const froze=guarantee||(Math.random()<0.5);
+    if(froze&&!(defKey==='player'&&G.player.stunImmune))def.status.stun=1;
     def.pendingStatus.bleed=3;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': Glacial Nova! '+dmg+'dmg!'+(froze?' FROZE!':'')+' BLEED!');
@@ -1041,17 +983,17 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     const finalDmg=Math.round(dmg*bonus);
     def.hp-=finalDmg;
     checkPhoenix(def);showPop(defKey+'-fill',finalDmg,false);
-    const execTag=bonus>1?' [EXECUTE +50%!]':'';
-    setMsg(att.name+': Finishing Blow! '+finalDmg+'dmg!'+execTag+(crit?' Crit!':''));
-    addLog('> '+att.name+': '+moveName+' -> '+finalDmg+'dmg'+execTag+(crit?' CRIT':''),bonus>1?'crit':crit?'crit':'hit');
+    setMsg(att.name+': Finishing Blow! '+finalDmg+'dmg!'+(bonus>1?' [EXECUTE +50%!]':'')+(crit?' Crit!':''));
+    addLog('> '+att.name+': '+moveName+' -> '+finalDmg+'dmg'+(bonus>1?' [EXECUTE]':'')+(crit?' CRIT':''),bonus>1?'crit':crit?'crit':'hit');
     renderFighter(defKey);gainExpScore(finalDmg,attKey);if(attKey==='player')G.momentumCount++;await delay(900);return;
   }
 
   if(mv.fx==='supernova'){
+    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    if(!(defKey==='player'&&G.player.burnImmune))def.pendingStatus.burn=3;
+    if(guarantee||!(defKey==='player'&&G.player.burnImmune))def.pendingStatus.burn=3;
     def.pendingStatus.bleed=3;
-    if(!(defKey==='player'&&G.player.chillImmune))def.pendingStatus.chill=3;
+    if(guarantee||!(defKey==='player'&&G.player.chillImmune))def.pendingStatus.chill=3;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': SUPERNOVA! '+dmg+'dmg! Burn+Bleed+Chill!'+(crit?' Crit!':''));
     addLog('> '+att.name+': Supernova -> '+dmg+'dmg BURN+BLEED+CHILL'+(crit?' CRIT':''),'crit');
@@ -1080,6 +1022,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
   def.hp-=dmg;
   if(att.vamp){const h=Math.round(dmg*(att.vampBonus||0.15));att.hp=Math.min(att.maxHp,att.hp+h);}
+  // Apply reflections consistently for all non-special attacks on player
   if(defKey==='player'&&G.player.reflect20)att.hp-=Math.round(dmg*0.2);
   if(defKey==='player'&&G.player.reflect10)att.hp-=Math.round(dmg*0.1);
   if(defKey==='player'&&G.player.counter&&dmg>=20){att.hp-=8;addLog('> Counter-Strike: 8 dmg reflected','hit');}
@@ -1115,7 +1058,6 @@ function gainExpScore(dmg,attKey){
   }
 }
 
-// ── END-OF-ROUND STATUS TICKS ─────────────────────────────────────────────────
 function tickStatusEndOfRound(who){
   const c=G[who];if(!c)return;
   if(c.pendingStatus){
@@ -1140,13 +1082,11 @@ function tickStatusEndOfRound(who){
   if(c.status.shieldTurns>0){c.status.shieldTurns--;if(c.status.shieldTurns===0){c.defMult=1;addLog('> '+c.name+': Iron Wall faded','debuff');renderFighter(who);}}
 }
 
-// ── AI PICK ───────────────────────────────────────────────────────────────────
 function aiPick(){
   const avail=G.ai.moves.filter(m=>m.pp>0);
   if(!avail.length)return G.ai.moves[0].name;
   const pp=G.player.hp/G.player.maxHp,ap=G.ai.hp/G.ai.maxHp;
   const theme=G.ai.theme;
-
   if(ap<0.32&&G.ai.status.shieldTurns===0){const w=avail.find(m=>m.fx==='ironwall');if(w)return w.name;}
   if(ap<0.42){const rg=avail.find(m=>m.fx==='regen');if(rg&&G.ai.status.regen===0&&Math.random()<0.5)return rg.name;}
   if(ap<0.55&&G.ai.atkBuf<4){const b=avail.find(m=>m.fx==='fortify_def');if(b&&Math.random()<0.35)return b.name;}
@@ -1154,13 +1094,11 @@ function aiPick(){
   if(ap<0.55&&(theme==='Leech Vampire'||theme==='Regenerator')){const d=avail.find(m=>m.fx==='drain'||m.fx==='leech');if(d)return d.name;}
   if(G.ai.status.reflect===0){const rf=avail.find(m=>m.fx==='reflect');if(rf&&Math.random()<0.2)return rf.name;}
   if(theme==='Stunner'){const s=avail.find(m=>m.fx==='stun');if(s&&G.player.status.stun===0&&Math.random()<0.5)return s.name;}
-  if(theme==='Pyromaniac'||theme==='Toxicologist'||theme==='Plague Carrier'){const b=avail.find(m=>m.fx==='burn');if(b&&!G.player.status.burn&&!G.player.burnImmune&&Math.random()<0.55)return b.name;}
+  if(theme==='Pyromaniac'||theme==='Toxicologist'){const b=avail.find(m=>m.fx==='burn');if(b&&!G.player.status.burn&&!G.player.burnImmune&&Math.random()<0.55)return b.name;}
   const psn=avail.find(m=>m.fx==='poison');if(psn&&!G.player.status.poison&&!G.player.poisonImmune&&Math.random()<0.35)return psn.name;
   const bl=avail.find(m=>m.fx==='bleed');if(bl&&!G.player.status.bleed&&Math.random()<0.3)return bl.name;
   const ch=avail.find(m=>m.fx==='chill');if(ch&&G.player.spd>G.ai.spd&&Math.random()<0.35)return ch.name;
   if(theme==='Armor Shredder'&&G.player.defDebuf<3){const rnd=avail.find(m=>m.fx==='rend'||m.fx==='sunder');if(rnd&&Math.random()<0.6)return rnd.name;}
-  if(theme==='Executioner'&&pp<0.40){const ex=avail.find(m=>m.fx==='executeblow');if(ex&&Math.random()<0.85)return ex.name;}
-  if(theme==='Berserker'&&ap<0.4){const big=avail.filter(m=>m.dmg&&m.dmg[0]>0).reduce((a,b)=>b.dmg[1]>a.dmg[1]?b:a,avail[0]);if(big)return big.name;}
   if(theme==='Glass Cannon'||theme==='Deathbringer'){const big=avail.filter(m=>m.dmg&&m.dmg[0]>0).sort((a,b)=>b.dmg[1]-a.dmg[1])[0];if(big&&Math.random()<0.75)return big.name;}
   if(pp<0.3){const big=avail.filter(m=>m.dmg&&m.dmg[0]>0).sort((a,b)=>b.dmg[1]-a.dmg[1])[0];if(big&&Math.random()<0.8)return big.name;}
   const aggression=clamp(0.25+G.ai.cycle*0.10,0.25,0.65);
@@ -1178,7 +1116,6 @@ function autoScalePlayer(){
   if(e.maxHp>G.player.maxHp*1.6){const gain=Math.round((e.maxHp-G.player.maxHp)*0.08);G.player.maxHp+=gain;addLog('> Auto-scale: MaxHP +'+gain,'proj');}
 }
 
-// ── PLAYER MOVE ───────────────────────────────────────────────────────────────
 async function playerMove(name){
   if(G.busy||G.phase!=='player')return;
   const mv=G.player.moves.find(m=>m.name===name);if(!mv)return;
@@ -1189,12 +1126,18 @@ async function playerMove(name){
   if(mv.fx!=='chain')G.chainCount=0;
   setMovesEnabled(false);
 
-  const pFirst=playerGoesFirst();
+  // BUG FIX: Quick Strike always goes first regardless of SPD
+  const quickStrikeFirst=mv.id==='quick';
+  const pFirst=quickStrikeFirst||playerGoesFirst();
+
   if(!pFirst){
     setMsg(G.ai.name+' is faster and strikes first!',false);await delay(500);
     if(G.ai.status&&G.ai.status.stun>0){G.ai.status.stun=0;addLog('> '+G.ai.name+': STUNNED — skip','debuff');setMsg(G.ai.name+' is stunned!');await delay(700);}
-    else{await execMove('ai','player',aiPick(),1.0);}
-    if(G.player.hp<=0){checkPhoenix(G.player);if(G.player.hp<=0){G.player.hp=0;renderFighter('player');await delay(300);endBattle('ai');return;}}
+    else await execMove('ai','player',aiPick(),1.0);
+    if(G.player.hp<=0){
+      checkPhoenix(G.player); // BUG FIX: was missing this check in non-first-strike branch
+      if(G.player.hp<=0){G.player.hp=0;renderFighter('player');await delay(300);endBattle('ai');return;}
+    }
     await execMove('player','ai',name,mgMult);
   }else{
     await execMove('player','ai',name,mgMult);
@@ -1204,14 +1147,12 @@ async function playerMove(name){
     }
     setMsg(G.ai.name+' is computing...',false);await delay(400+G.wave*15);
     if(G.ai.status&&G.ai.status.stun>0){G.ai.status.stun=0;addLog('> '+G.ai.name+': STUNNED — skip','debuff');setMsg(G.ai.name+' is stunned!');await delay(700);}
-    else{await execMove('ai','player',aiPick(),1.0);}
+    else await execMove('ai','player',aiPick(),1.0);
   }
 
   addLog('--- end of round ---','sys');
-  tickStatusEndOfRound('player');
-  tickStatusEndOfRound('ai');
+  tickStatusEndOfRound('player');tickStatusEndOfRound('ai');
   if(G.deathmarkActive){G.deathmarkTurns--;if(G.deathmarkTurns<=0){G.deathmarkActive=false;addLog('> Deathmark expired','debuff');}}
-
   renderAll();
 
   if(G.player.hp<=0){G.player.hp=0;renderFighter('player');await delay(300);endBattle('ai');return;}
@@ -1231,15 +1172,20 @@ function useItem(type){
   else if(type==='boost'){G.player.status.stimTurns=3;setMsg('Stim! ATK+40% 3 turns.');addLog('> Item: Stim -> ATK x1.4 3t','proj');renderFighter('player');}
   else if(type==='shield'){G.player.defMult=2;G.player.status.shieldTurns=2;setMsg('Shield Cell! DEF doubled 2 turns.');addLog('> Item: Shield -> DEF x2 2t','proj');renderFighter('player');}
   else if(type==='flash'){G.ai.status.stun=1;setMsg('Flash Grenade! '+G.ai.name+' stunned!');addLog('> Item: Flash -> STUN','proj');renderFighter('ai');}
-  else if(type==='clens'){G.nextMoveAccBonus=20;setMsg('Critical Lens! Next move +20% ACC.');addLog('> Item: Lens -> next +20% ACC','proj');renderFighter('player');}
+  else if(type==='clens'){
+    // BUG FIX: Critical Lens now ALSO guarantees the effect of the next move
+    G.nextMoveAccBonus=20;
+    G.nextMoveEffectGuarantee=true;
+    setMsg('Critical Lens! Next move +20% ACC AND guaranteed effect!');
+    addLog('> Item: Lens -> next +20% ACC + guaranteed status effect','proj');
+    renderFighter('player');
+  }
   renderItems();
 }
 
-// Move replace
 function showMoveReplace(newMove,onConfirm,onCancel){
   const overlay=document.getElementById('move-replace-overlay');
-  const infoEl=document.getElementById('mr-new-info');
-  const listEl=document.getElementById('mr-move-list');
+  const infoEl=document.getElementById('mr-new-info');const listEl=document.getElementById('mr-move-list');
   infoEl.innerHTML='<div class="mr-new-name">New: '+newMove.name+'</div><div class="mr-new-desc">'+newMove.desc+'<br>'+(newMove.tipExtra||'')+'</div>';
   listEl.innerHTML='';
   G.player.moves.forEach((mv,i)=>{
@@ -1251,18 +1197,13 @@ function showMoveReplace(newMove,onConfirm,onCancel){
   overlay.classList.add('active');
   G.moveReplaceCallback={onCancel};
 }
-
 function cancelMoveReplace(){
   document.getElementById('move-replace-overlay').classList.remove('active');
   if(G.moveReplaceCallback&&G.moveReplaceCallback.onCancel)G.moveReplaceCallback.onCancel();
   G.moveReplaceCallback=null;
 }
+function promptMoveReplace(newMove){return new Promise(resolve=>{showMoveReplace(newMove,(idx)=>{resolve(idx);},()=>{resolve(-1);});});}
 
-function promptMoveReplace(newMove){
-  return new Promise(resolve=>{showMoveReplace(newMove,(idx)=>{resolve(idx);},()=>{resolve(-1);});});
-}
-
-// ── UPGRADES ──────────────────────────────────────────────────────────────────
 const ALL_UPGRADES=[
   {id:'u_atk1',name:'Targeting Module',desc:'ATK permanently +3',rarity:'common',apply:G=>{G.player.bAtk+=3},check:()=>true},
   {id:'u_def1',name:'Armor Plating',desc:'DEF permanently +3',rarity:'common',apply:G=>{G.player.bDef+=3},check:()=>true},
@@ -1276,8 +1217,6 @@ const ALL_UPGRADES=[
   {id:'u_ppup',name:'Extended Reserves',desc:'All move max PP +3',rarity:'common',apply:G=>{G.player.moves.forEach(m=>{m.maxPp+=3;m.pp=Math.min(m.pp+3,m.maxPp)})},check:()=>true},
   {id:'u_sharpen',name:'Sharpened Edge',desc:'ATK +2 and Crit +5%',rarity:'common',apply:G=>{G.player.bAtk+=2;G.player.critBonus=(G.player.critBonus||0)+5},check:()=>true},
   {id:'u_shields',name:'Shield Cells x2',desc:'Gain 2 Shield Cells',rarity:'common',apply:G=>{G.items.shield=(G.items.shield||0)+2},check:()=>true},
-  {id:'u_lowpp_sync',name:'PP Optimizer',desc:'Low-PP moves restored +4',rarity:'common',apply:G=>{G.player.moves.forEach(m=>{if(m.pp<m.maxPp*0.5)m.pp=Math.min(m.maxPp,m.pp+4);})},check:G=>G.player.moves.some(m=>m.pp<m.maxPp*0.5)},
-  {id:'u_heal_if_low',name:'Field Triage',desc:'If below 50% HP: +60 HP',rarity:'common',apply:G=>{if(G.player.hp<G.player.maxHp*0.5)G.player.hp=Math.min(G.player.maxHp,G.player.hp+60);},check:G=>G.player.hp<G.player.maxHp*0.5},
   {id:'u_spd_def',name:'Reactive Plating',desc:'SPD +1, DEF +2',rarity:'common',apply:G=>{G.player.spd+=1;G.player.bDef+=2;},check:()=>true},
   {id:'u_atk_hp',name:'Combat Frame',desc:'ATK +2, Max HP +20',rarity:'common',apply:G=>{G.player.bAtk+=2;G.player.maxHp+=20;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp);},check:()=>true},
   {id:'u_evade_spd',name:'Ghost Steps',desc:'Evade +5%, SPD +1',rarity:'common',apply:G=>{G.player.evadeBonus=(G.player.evadeBonus||0)+5;G.player.spd+=1;},check:()=>true},
@@ -1298,28 +1237,18 @@ const ALL_UPGRADES=[
   {id:'u_dot_master',name:'DoT Master',desc:'All DoT effects deal +30% per tick',rarity:'rare',apply:G=>{G.dotMasterUpg=true;},check:G=>!G.dotMasterUpg&&G.player.moves.some(m=>['burn','poison','bleed','leech'].includes(m.fx))},
   {id:'u_pierce_upgrade',name:'Armor Annihilator',desc:'Pierce moves reduce enemy DEF 12% per hit',rarity:'rare',apply:G=>{G.pierceDegrade=true;},check:G=>G.player.moves.some(m=>m.fx==='pierce')&&!G.pierceDegrade},
   {id:'u_speedkill',name:'Speedkill Bonus',desc:'Acting first: +15% damage',rarity:'rare',apply:G=>{G.speedkillUpg=true;},check:G=>!G.speedkillUpg&&G.player.spd>=12},
-  {id:'u_sunder_synergy',name:'Shredder Rounds',desc:'Your DEF-debuff moves deal +25% damage',rarity:'rare',apply:G=>{G.shredderUpg=true;},check:G=>G.player.moves.some(m=>m.fx==='rend'||m.fx==='sunder')&&!G.shredderUpg},
-  {id:'u_execblow_boost',name:'Clean Kill',desc:'Finishing Blow execute threshold: 40%',rarity:'rare',apply:G=>{G.cleanKillUpg=true;},check:G=>G.player.moves.some(m=>m.fx==='executeblow')&&!G.cleanKillUpg},
-  {id:'u_triple_dot',name:'Pandemic Protocol',desc:'All DoT durations +2 turns',rarity:'rare',apply:G=>{G.pandemicUpg=true;G.player.moves.filter(m=>['burn','poison','bleed','glacial','supernova'].includes(m.fx)).forEach(m=>{m.maxPp+=1;m.pp=Math.min(m.pp+1,m.maxPp);});},check:G=>!G.pandemicUpg&&G.player.moves.some(m=>['burn','poison','bleed'].includes(m.fx))},
-  {id:'u_crit_vamp',name:'Life on Crit',desc:'Critical hits restore 8% max HP',rarity:'rare',apply:G=>{G.critVampUpg=true;},check:G=>!G.critVampUpg&&getCrit(G.player)>=20},
-  {id:'u_wraith_crit',name:'Shadow Killer',desc:'During Wraith Form, +20% crit',rarity:'rare',apply:G=>{G.wraith_crit=true;},check:G=>G.player.moves.some(m=>m.fx==='wraithform')&&!G.wraith_crit},
-  {id:'u_overwatch_boost',name:'Combat Reflexes',desc:'Overwatch counter damage: 75% instead of 50%',rarity:'rare',apply:G=>{G.overwatchBoost=true;},check:G=>G.player.moves.some(m=>m.fx==='overwatch')&&!G.overwatchBoost},
+  // NEW: Jackpot Synergy — pairs with Gambler's Edge
+  {id:'u_gamble_synergy',name:"Jackpot Synergy",desc:"Gambler's Edge outcomes amplified: Jackpot 3x, Drain 75% heal, Double becomes Triple, Shield lasts 3t, Bust refunds 1 PP",rarity:'rare',apply:G=>{G.jackpotSynergy=true;},check:G=>G.player.moves.some(m=>m.fx==='gamble')&&!G.jackpotSynergy},
   {id:'u_allstats',name:'Hyper Calibration',desc:'ATK, DEF, SPD all +5',rarity:'epic',apply:G=>{G.player.bAtk+=5;G.player.bDef+=5;G.player.spd+=5},check:()=>true},
   {id:'u_phoenix',name:'Phoenix Protocol',desc:'Survive fatal blow at 1 HP (once)',rarity:'epic',apply:G=>{G.player.phoenix=true},check:G=>!G.player.phoenix},
   {id:'u_omni',name:'Omni-Matrix',desc:'Crit+12%, Evade+12%, Vamp, Reflect10%',rarity:'epic',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+12;G.player.evadeBonus=(G.player.evadeBonus||0)+12;G.player.vamp=true;G.player.reflect10=true},check:()=>true},
-  {id:'u_warmaster',name:'War Master',desc:'ATK+8, DEF+4, unlock Annihilate',rarity:'epic',apply:async G=>{G.player.bAtk+=8;G.player.bDef+=4;const m=BASE_PMOVES.find(x=>x.id==='nuke');if(m&&!G.player.moves.find(x=>x.id===m.id)){await tryLearnMove({...m,pp:m.maxPp});}},check:()=>true,isAsync:true},
+  {id:'u_warmaster',name:'War Master',desc:'ATK+8, DEF+4, unlock Annihilate',rarity:'epic',apply:async G=>{G.player.bAtk+=8;G.player.bDef+=4;const m=BASE_PMOVES.find(x=>x.id==='nuke');if(m&&!G.player.moves.find(x=>x.id===m.id))await tryLearnMove({...m,pp:m.maxPp});},check:()=>true,isAsync:true},
   {id:'u_overload',name:'Overload Core',desc:'+2 ATK per hit, resets when hit',rarity:'epic',apply:G=>{G.player.overload=true;G.player.overloadStacks=0},check:G=>!G.player.overload},
-  {id:'u_deathmk',name:'Deathmark Module',desc:'Unlock Deathmark (T3)',rarity:'epic',apply:async G=>{const m=BASE_PMOVES.find(x=>x.id==='rupture_t3');if(m&&!G.player.moves.find(x=>x.id===m.id)){await tryLearnMove({...m,pp:m.maxPp});}},check:G=>!G.player.moves.find(x=>x.id==='rupture_t3'),isAsync:true},
-  {id:'u_glacialcore',name:'Glacial Core',desc:'Unlock Glacial Nova (T3) + Chill immune',rarity:'epic',apply:async G=>{G.player.chillImmune=true;const m=BASE_PMOVES.find(x=>x.id==='glacial');if(m&&!G.player.moves.find(x=>x.id===m.id)){await tryLearnMove({...m,pp:m.maxPp});}},check:G=>!G.player.moves.find(x=>x.id==='glacial'),isAsync:true},
-  {id:'u_grand_vamp',name:'Blood God',desc:'Vamp bonus 30%',rarity:'epic',apply:G=>{G.player.vampBonus=0.30;},check:G=>G.player.vamp&&(G.player.vampBonus||0)<0.30},
-  {id:'u_spd_crit',name:'Blur of Steel',desc:'Each 5 SPD = +3% Crit (applies now)',rarity:'epic',apply:G=>{G.blurSteelUpg=true;const bonus=Math.floor(G.player.spd/5)*3;G.player.critBonus=(G.player.critBonus||0)+bonus;},check:G=>G.player.spd>=15&&!G.blurSteelUpg},
-  {id:'u_supernova_unlock',name:'Stellar Core',desc:'Unlock Supernova (T3) + all DoT+1t',rarity:'epic',apply:async G=>{G.dotMasterUpg=true;const m=BASE_PMOVES.find(x=>x.id==='supernova');if(m&&!G.player.moves.find(x=>x.id===m.id)){await tryLearnMove({...m,pp:m.maxPp});}},check:G=>!G.player.moves.find(x=>x.id==='supernova'),isAsync:true},
-  {id:'u_shredmaster',name:'Sunder Mastery',desc:'DEF debuffs permanent (don\'t expire)',rarity:'epic',apply:G=>{G.sunderMaster=true;},check:G=>(G.player.moves.some(m=>m.fx==='rend'||m.fx==='sunder'))&&!G.sunderMaster},
-  {id:'u_mirror',name:'Mirror Shield',desc:'Reflect 30% of all incoming damage',rarity:'epic',apply:G=>{G.player.reflect30=true;},check:G=>!G.player.reflect30},
-  {id:'u_critchain',name:'Critical Chain',desc:'Crit hits grant +1 chain ATK bonus permanently',rarity:'epic',apply:G=>{G.critChainUpg=true;},check:G=>G.player.moves.some(m=>m.fx==='chain')&&getCrit(G.player)>=20&&!G.critChainUpg},
+  {id:'u_glacialcore',name:'Glacial Core',desc:'Unlock Glacial Nova (T3) + Chill immune',rarity:'epic',apply:async G=>{G.player.chillImmune=true;const m=BASE_PMOVES.find(x=>x.id==='glacial');if(m&&!G.player.moves.find(x=>x.id===m.id))await tryLearnMove({...m,pp:m.maxPp});},check:G=>!G.player.moves.find(x=>x.id==='glacial'),isAsync:true},
+  {id:'u_spd_crit',name:'Blur of Steel',desc:'Each 5 SPD = +3% Crit',rarity:'epic',apply:G=>{G.blurSteelUpg=true;const bonus=Math.floor(G.player.spd/5)*3;G.player.critBonus=(G.player.critBonus||0)+bonus;},check:G=>G.player.spd>=15&&!G.blurSteelUpg},
+  {id:'u_supernova_unlock',name:'Stellar Core',desc:'Unlock Supernova (T3) + all DoT+1t',rarity:'epic',apply:async G=>{G.dotMasterUpg=true;const m=BASE_PMOVES.find(x=>x.id==='supernova');if(m&&!G.player.moves.find(x=>x.id===m.id))await tryLearnMove({...m,pp:m.maxPp});},check:G=>!G.player.moves.find(x=>x.id==='supernova'),isAsync:true},
 ];
 
-// ── TRAITS ────────────────────────────────────────────────────────────────────
 const TRAITS=[
   {id:'t_tough',name:'Unyielding',desc:'+5 DEF passively',buildSynergy:'tank'},
   {id:'t_swift',name:'Overclocked',desc:'Always win SPD ties',buildSynergy:'speed'},
@@ -1330,20 +1259,14 @@ const TRAITS=[
   {id:'t_glasscannon',name:'Glass Cannon',desc:'ATK +8, DEF -4 permanently',buildSynergy:'aggro'},
   {id:'t_scavenger',name:'Scavenger',desc:'+25g every wave clear',buildSynergy:'economy'},
   {id:'t_tank',name:'Iron Fortress',desc:'Incoming damage -10% (passive)',buildSynergy:'tank'},
-  {id:'t_specialist',name:'Specialist',desc:'Moves of same tier: +8% damage',buildSynergy:'focused'},
-  {id:'t_berserker_tr',name:'Rage Engine',desc:'Lose 1 DEF, gain 2 ATK per wave',buildSynergy:'aggro'},
+  {id:'t_momentum',name:'Momentum',desc:'Consecutive hits +5% damage each',buildSynergy:'aggro'},
   {id:'t_vampire_tr',name:'Bloodthirst',desc:'All attacks passively drain 8% HP',buildSynergy:'sustain'},
   {id:'t_critburn',name:'Critical OS',desc:'Critical hits apply 2-turn Burn on enemy',buildSynergy:'dot'},
-  {id:'t_poison_spec',name:'Plague Doctor',desc:'Poison and Bleed deal +20% per tick',buildSynergy:'dot'},
-  {id:'t_pierce_spec',name:'Void Walker',desc:'Pierce moves: +15% raw damage',buildSynergy:'pierce'},
-  {id:'t_chain_spec',name:'Chain Master',desc:'Chain Attack: +6 ATK per use (instead of +4)',buildSynergy:'chain'},
+  {id:'t_crit_spec',name:'Sniper Mind',desc:'Crits deal 2.2x instead of 1.5x',buildSynergy:'crit'},
   {id:'t_hp_regen',name:'Regenerative Frame',desc:'Passively regen 2% max HP each end of round',buildSynergy:'sustain'},
   {id:'t_gold_finder',name:'Gold Seeker',desc:'Gold rewards increased 20%',buildSynergy:'economy'},
-  {id:'t_crit_spec',name:'Sniper Mind',desc:'Crits deal 2.2x instead of 1.5x',buildSynergy:'crit'},
-  {id:'t_execspec',name:'Guillotine',desc:'Execute threshold increases to 35%',buildSynergy:'execute'},
-  {id:'t_wraith_spec',name:'Phase Dancer',desc:'Wraith Form lasts 3 turns instead of 2',buildSynergy:'evasion'},
-  {id:'t_counter_spec',name:'Ironclad Fists',desc:'Counter-Strike reflects 20 dmg (was 8)',buildSynergy:'counter'},
-  {id:'t_shield_spec',name:'Bulwark',desc:'Iron Wall lasts 3 turns instead of 2',buildSynergy:'defense'},
+  // NEW: Lucky trait that pairs with Gambler's Edge
+  {id:'t_lucky',name:'Lady Luck',desc:"Gambler's Edge JACKPOT chance +15%. Non-combat: random 20g per wave",buildSynergy:'gamble'},
 ];
 
 function rollUpgrades(){
@@ -1384,14 +1307,13 @@ async function tryLearnMove(newMove){
   else{
     const replaceIdx=await promptMoveReplace(newMove);
     if(replaceIdx>=0){const old=G.player.moves[replaceIdx];addLog('> Replaced '+old.name+' with '+newMove.name,'proj');G.player.moves[replaceIdx]={...newMove,pp:newMove.maxPp};}
-    else{addLog('> Cancelled learning '+newMove.name,'proj');}
+    else addLog('> Cancelled learning '+newMove.name,'proj');
   }
   renderMoves();updateProbTable();
 }
 
 function showStatUpgrade(onDone){
-  const sec=document.getElementById('stat-up-section');
-  const grid=document.getElementById('stat-up-grid');
+  const sec=document.getElementById('stat-up-section');const grid=document.getElementById('stat-up-grid');
   sec.style.display='block';grid.innerHTML='';
   G.player.maxHp+=15;G.player.hp=Math.min(G.player.hp+15,G.player.maxHp);
   G.player.bAtk+=1;G.player.bDef+=1;
@@ -1405,8 +1327,7 @@ function showStatUpgrade(onDone){
     {label:'EVADE +6%',apply:()=>{G.player.evadeBonus=(G.player.evadeBonus||0)+6;addLog('> Stat: EVADE +6%','proj');}},
   ];
   stats.forEach(s=>{
-    const btn=document.createElement('button');
-    btn.textContent=s.label;
+    const btn=document.createElement('button');btn.textContent=s.label;
     btn.style.cssText='font-size:11px;padding:3px 4px;text-align:center;width:100%';
     btn.addEventListener('click',()=>{s.apply();sec.style.display='none';updateRadar();onDone();});
     grid.appendChild(btn);
@@ -1419,9 +1340,8 @@ function applyTraitPassives(){
     if(G.player.hp<G.player.maxHp){G.player.hp=Math.min(G.player.maxHp,G.player.hp+h);addLog('> Passive Regen: +'+h+'HP','hit');}
   }
   if(G.traits.find(t=>t.id==='t_crit_spec'))G.player.critMult=2.2;
-  if(G.traits.find(t=>t.id==='t_execspec'))G.player.executeThreshold=0.35;
-  if(G.traits.find(t=>t.id==='t_counter_spec'))G.player.counterDmg=20;
-  if(G.traits.find(t=>t.id==='t_pierce_spec')){}
+  // Lady Luck: +20g each wave
+  if(G.traits.find(t=>t.id==='t_lucky')){G.gold+=20;addLog('> Lady Luck: +20g','proj');}
 }
 
 function endBattle(winner){
@@ -1436,8 +1356,7 @@ function endBattle(winner){
     G.gold+=goldEarned;
     const spd=Math.max(0,(20-G.turn)*10),hp=Math.round(G.player.hp/G.player.maxHp*100),total=base+spd+hp;
     G.waveScore+=total;G.score+=total;
-    const cycleNote=G.ai.cycle>0?'\nMK Cycle:     '+G.ai.cycle+' (+bonuses)':'';
-    document.getElementById('result-detail').textContent='Wave '+G.wave+' cleared!'+cycleNote+'\n\nBase reward:  '+base+'\nSpeed bonus:  +'+spd+'\nHP bonus:     +'+hp+'\nTotal:        '+total+'\nGold earned:  +'+goldEarned+'g\n\nCumulative:   '+G.score.toLocaleString()+'\nGold:         '+G.gold+'g\nLevel:        '+G.level;
+    document.getElementById('result-detail').textContent='Wave '+G.wave+' cleared!\n\nBase reward:  '+base+'\nSpeed bonus:  +'+spd+'\nHP bonus:     +'+hp+'\nTotal:        '+total+'\nGold earned:  +'+goldEarned+'g\n\nCumulative:   '+G.score.toLocaleString()+'\nGold:         '+G.gold+'g\nLevel:        '+G.level;
     addLog('=== VICTORY Wave '+G.wave+' — +'+total+' (+'+goldEarned+'g) ===','sys');
     autoScalePlayer();
     const restockChance=Math.min(0.98,0.65+G.wave*0.03);
@@ -1446,8 +1365,7 @@ function endBattle(winner){
       addLog('> Shop restocked for Wave '+(G.wave+1),'proj');
     }
     const upgrades=rollUpgrades();
-    const upDiv=document.getElementById('upgrade-pick');
-    const chDiv=document.getElementById('upgrade-choices');
+    const upDiv=document.getElementById('upgrade-pick');const chDiv=document.getElementById('upgrade-choices');
     upDiv.style.display='block';chDiv.innerHTML='';
     const newMove=offerMoveUnlock();
     if(newMove){
@@ -1460,12 +1378,13 @@ function endBattle(winner){
       card.innerHTML='<div class="utitle">'+u.name+'</div><div class="urarity '+(u.rarity==='epic'?'rarity-epic':u.rarity==='rare'?'rarity-rare':'rarity-common')+'">['+u.rarity+']</div><div class="udesc">'+u.desc+'</div><button style="width:100%;margin-top:3px">Select</button>';
       card.querySelector('button').addEventListener('click',async()=>{
         G.appliedUpgrades.push(u.id);
-        if(u.isAsync){await u.apply(G);}else{u.apply(G);}
+        if(u.isAsync)await u.apply(G);else u.apply(G);
         upDiv.style.display='none';addLog('> Upgrade: '+u.name,'proj');
         upgradeChosen=true;showStatUpgrade(checkBothChosen);
       });
       chDiv.appendChild(card);
     });
+    // Trait offer every 3 waves
     if(G.wave%3===0){
       const pool=TRAITS.filter(t=>!G.traits.find(x=>x.id===t.id));
       if(pool.length){
@@ -1475,12 +1394,8 @@ function endBattle(winner){
         card.querySelector('button').addEventListener('click',()=>{
           G.traits.push(t);
           if(t.id==='t_glasscannon'){G.player.bAtk+=8;G.player.bDef=Math.max(1,G.player.bDef-4);}
-          if(t.id==='t_berserker_tr'){G.player.bAtk+=2;G.player.bDef=Math.max(1,G.player.bDef-1);}
           if(t.id==='t_crit_spec')G.player.critMult=2.2;
-          if(t.id==='t_chain_spec')G.chainBoosted=true;
           if(t.id==='t_vampire_tr'){G.player.vamp=true;G.player.vampBonus=Math.max(G.player.vampBonus||0,0.08);}
-          if(t.id==='t_poison_spec')G.dotMasterUpg=true;
-          if(t.id==='t_execspec')G.player.execute=true;
           upDiv.style.display='none';addLog('> Trait: '+t.name,'proj');upgradeChosen=true;showStatUpgrade(checkBothChosen);
         });
         chDiv.appendChild(card);
@@ -1505,7 +1420,7 @@ function nextWave(){
     phoenixUsed:false,overloadStacks:0,defMult:1,atkBuf:0,defBuf:0,atkBufTurns:0,defBufTurns:0,
     defDebuf:0,defDebufTurns:0,overwatchReady:false};
   G.wave++;G.turn=1;G.waveScore=0;G.phase='player';G.busy=false;G.chainCount=0;G.momentumCount=0;
-  G.nextMoveAccBonus=0;G.deathmarkActive=false;G.deathmarkTurns=0;
+  G.nextMoveAccBonus=0;G.nextMoveEffectGuarantee=false;G.deathmarkActive=false;G.deathmarkTurns=0;
   if(G.traits.find(t=>t.id==='t_berserker_tr')){p.bAtk+=2;p.bDef=Math.max(1,p.bDef-1);}
   p.hp=p.maxHp;G.player=p;G.ai=buildEnemy(G.wave-1);
   applyTraitPassives();
