@@ -34,12 +34,12 @@ function runMinigame(moveName,tier,enemyEvade=5){
     let idx=0,hits=0,totalHitTime=0,hitCount=0;
     document.getElementById('mg-move-name').textContent='Move: '+moveName;
     document.getElementById('mg-result').textContent='';
-    document.getElementById('mg-hint').textContent='Press the highlighted key! Dashed = INVERTED (press OPPOSITE)!';
+    document.getElementById('mg-hint').textContent='Press highlighted key! Dashed = INVERTED (press OPPOSITE)';
     document.getElementById('mg-progress').textContent='Key 1 / '+numKeys;
-    document.getElementById('mg-threshold').textContent='Hit 50%+ to land | Hit fast for +25% dmg bonus';
+    document.getElementById('mg-threshold').textContent='Hit 50%+ to land | Fast hits = +25% dmg';
     document.getElementById('mg-speed-bar').style.width='0%';
     const invertCount=seq.filter(s=>s.inverted).length;
-    document.getElementById('mg-inverted-label').textContent=invertCount>0?'⚠ '+invertCount+' inverted key'+(invertCount>1?'s':''):'';
+    document.getElementById('mg-inverted-label').textContent=invertCount>0?'⚠ '+invertCount+' inverted':'';
     const keysRow=document.getElementById('mg-keys-row');keysRow.innerHTML='';
     const keyEls=seq.map((k,i)=>{
       const el=document.createElement('div');
@@ -102,16 +102,256 @@ function runMinigame(moveName,tier,enemyEvade=5){
 const ENEMY_BASE_NAMES=['Beta','Gamma','Delta','Epsilon','Omega','Nemesis','Titan','Singularity','Vortex','Dreadnought','Phantom','Colossus'];
 function getEnemyName(wi){const b=ENEMY_BASE_NAMES[wi%ENEMY_BASE_NAMES.length],c=Math.floor(wi/ENEMY_BASE_NAMES.length);return'Unit '+b+(c>0?' MK'+(c+1):'');}
 
+// ── ENEMY THEMES — each has 1-2 high stats, rest lower ──────────────────────
+const ENEMY_THEMES=[
+  {name:'Brawler',aiDesc:'Aggressive melee. High ATK. Uses Power Up when healthy.',
+   statMod:{atk:1.4,def:0.8,spd:0.9,hp:1.0,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Power Slam',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:90,pp:14,maxPp:14,fx:null},
+    {name:'Steady Jab',dmg:[Math.round(13*ds),Math.round(19*ds)],acc:100,pp:16,maxPp:16,fx:null},
+    {name:'Headbutt',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:12,maxPp:12,fx:null},
+    {name:'Power Up',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'fortify_atk'},
+  ]},
+  {name:'Leech Vampire',aiDesc:'High HP/sustain. Drains when low. Poison counters regen.',
+   statMod:{atk:0.9,def:0.9,spd:0.8,hp:1.35,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Power Slam',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:90,pp:12,maxPp:12,fx:null},
+    {name:'Life Drain',dmg:[Math.round(10*ds),Math.round(17*ds)],acc:85,pp:12,maxPp:12,fx:'drain'},
+    {name:'Leech Field',dmg:[Math.round(15*ds),Math.round(21*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
+    {name:'Brace',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_def'},
+  ]},
+  {name:'Pyromaniac',aiDesc:'High ATK, low DEF. Stacks Burn. Kill fast before fire accumulates.',
+   statMod:{atk:1.3,def:0.65,spd:1.0,hp:0.9,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Burn Strike',dmg:[Math.round(14*ds),Math.round(22*ds)],acc:88,pp:12,maxPp:12,fx:'burn'},
+    {name:'Inferno',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:72,pp:7,maxPp:7,fx:'burn'},
+    {name:'Flame Jab',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:95,pp:14,maxPp:14,fx:'burn'},
+    {name:'Backdraft',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:82,pp:10,maxPp:10,fx:null},
+    {name:'Brace',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'fortify_def'},
+  ]},
+  {name:'Glass Cannon',aiDesc:'Extreme ATK, very low DEF and HP. One-shots or dies fast.',
+   statMod:{atk:1.6,def:0.55,spd:1.1,hp:0.7,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'All-In',dmg:[Math.round(36*ds),Math.round(50*ds)],acc:60,pp:6,maxPp:6,fx:null},
+    {name:'Sniper Shot',dmg:[Math.round(30*ds),Math.round(42*ds)],acc:80,pp:8,maxPp:8,fx:'highcrit'},
+    {name:'Quick Burst',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:95,pp:14,maxPp:14,fx:null},
+    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
+  ]},
+  {name:'Stunner',aiDesc:'High SPD. Stuns frequently then lands big hits while you\'re paralyzed.',
+   statMod:{atk:1.1,def:0.85,spd:1.4,hp:0.9,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Shock Blast',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:82,pp:10,maxPp:10,fx:'stun'},
+    {name:'Chain Shock',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:88,pp:12,maxPp:12,fx:'stun'},
+    {name:'EMP Strike',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:75,pp:8,maxPp:8,fx:'stun'},
+    {name:'Overcharge',dmg:[Math.round(30*ds),Math.round(42*ds)],acc:68,pp:5,maxPp:5,fx:null},
+    {name:'Steady Jab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:100,pp:12,maxPp:12,fx:null},
+  ]},
+  {name:'Toxicologist',aiDesc:'Moderate stats. Stacks poison and burn together. Burst beats stacking.',
+   statMod:{atk:0.95,def:0.95,spd:0.95,hp:1.05,evade:2},
+   buildFn:(wi,ds)=>[
+    {name:'Toxin Dart',dmg:[Math.round(8*ds),Math.round(14*ds)],acc:92,pp:12,maxPp:12,fx:'poison'},
+    {name:'Venom Strike',dmg:[Math.round(16*ds),Math.round(24*ds)],acc:88,pp:10,maxPp:10,fx:'poison'},
+    {name:'Leech Field',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
+    {name:'Acid Splash',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:90,pp:12,maxPp:12,fx:'burn'},
+    {name:'Power Slam',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:88,pp:10,maxPp:10,fx:null},
+  ]},
+  {name:'Berserker',aiDesc:'Grows stronger as HP drops. High HP, moderate ATK. Bleed + heavy. Kill slowly = bad.',
+   statMod:{atk:1.15,def:0.75,spd:1.05,hp:1.25,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Rupture',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:84,pp:9,maxPp:9,fx:'bleed'},
+    {name:'Frenzy Slam',dmg:[Math.round(26*ds),Math.round(38*ds)],acc:82,pp:8,maxPp:8,fx:null},
+    {name:'Barrage',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:90,pp:10,maxPp:10,fx:'multihit'},
+    {name:'Bleed Strike',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:90,pp:11,maxPp:11,fx:'bleed'},
+    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
+  ]},
+  {name:'Void Piercer',aiDesc:'High ATK, low DEF. All moves bypass DEF. Iron Wall is useless here.',
+   statMod:{atk:1.35,def:0.55,spd:0.9,hp:0.95,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Void Pierce',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:82,pp:10,maxPp:10,fx:'pierce'},
+    {name:'Armor Shred',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:11,maxPp:11,fx:'pierce'},
+    {name:'Cryo Bolt',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:90,pp:10,maxPp:10,fx:'chill'},
+    {name:'Iron Wall',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'ironwall'},
+    {name:'Steady Jab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:100,pp:10,maxPp:10,fx:null},
+  ]},
+  {name:'Frost Warden',aiDesc:'High DEF, slows and freezes. Burn removes chill. Low ATK but hard to hurt.',
+   statMod:{atk:0.75,def:1.45,spd:0.85,hp:1.1,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Blizzard',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:12,maxPp:12,fx:'chill'},
+    {name:'Ice Lance',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:80,pp:9,maxPp:9,fx:'chill'},
+    {name:'Frost Jab',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:96,pp:14,maxPp:14,fx:'chill'},
+    {name:'Iron Wall',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'ironwall'},
+    {name:'Brace',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'fortify_def'},
+  ]},
+  {name:'Phantom Blade',aiDesc:'High evade and crit. Hard to hit. Low HP — take it down fast.',
+   statMod:{atk:1.1,def:0.7,spd:1.2,hp:0.75,evade:18},
+   buildFn:(wi,ds)=>[
+    {name:'Shadow Stab',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:90,pp:12,maxPp:12,fx:'highcrit'},
+    {name:'Phantom Slash',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:82,pp:9,maxPp:9,fx:'highcrit'},
+    {name:'Nullify',dmg:[0,0],acc:100,pp:3,maxPp:3,fx:'reflect'},
+    {name:'Quick Stab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:98,pp:14,maxPp:14,fx:null},
+    {name:'Rupture',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:85,pp:8,maxPp:8,fx:'bleed'},
+  ]},
+  {name:'Regenerator',aiDesc:'High DEF and HP. Heals continuously. Use Pierce or DoT to overcome regen.',
+   statMod:{atk:0.7,def:1.5,spd:0.8,hp:1.3,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'regen'},
+    {name:'Slam',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:88,pp:12,maxPp:12,fx:null},
+    {name:'Brace',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'fortify_def'},
+    {name:'Heavy Strike',dmg:[Math.round(26*ds),Math.round(36*ds)],acc:80,pp:8,maxPp:8,fx:null},
+    {name:'Drain Field',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:85,pp:9,maxPp:9,fx:'drain'},
+  ]},
+  {name:'Deathbringer',aiDesc:'Extreme ATK, lowest DEF in game. Boost DEF fast or heal.',
+   statMod:{atk:1.7,def:0.45,spd:1.0,hp:0.85,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Oblivion',dmg:[Math.round(36*ds),Math.round(50*ds)],acc:64,pp:5,maxPp:5,fx:null},
+    {name:'Annihilate',dmg:[Math.round(42*ds),Math.round(58*ds)],acc:58,pp:4,maxPp:4,fx:null},
+    {name:'Devastate',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:74,pp:7,maxPp:7,fx:null},
+    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
+    {name:'Quick Burst',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:96,pp:14,maxPp:14,fx:null},
+  ]},
+  {name:'Armor Shredder',aiDesc:'High ATK, stacks DEF debuffs before big hits. Use Iron Wall early.',
+   statMod:{atk:1.3,def:0.8,spd:0.9,hp:1.0,evade:0},
+   buildFn:(wi,ds)=>[
+    {name:'Rend',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:94,pp:14,maxPp:14,fx:'rend'},
+    {name:'Sunder',dmg:[Math.round(15*ds),Math.round(22*ds)],acc:88,pp:10,maxPp:10,fx:'sunder'},
+    {name:'Expose',dmg:[Math.round(18*ds),Math.round(28*ds)],acc:86,pp:10,maxPp:10,fx:'rend'},
+    {name:'Crusher',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:80,pp:7,maxPp:7,fx:null},
+  ]},
+  {name:'Speed Demon',aiDesc:'Very high SPD. Chain attacks snowball. Chill to slow, survive early turns.',
+   statMod:{atk:1.0,def:0.8,spd:1.55,hp:0.85,evade:5},
+   buildFn:(wi,ds)=>[
+    {name:'Blitz',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:96,pp:14,maxPp:14,fx:null},
+    {name:'Chain Strike',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:92,pp:10,maxPp:10,fx:'chain'},
+    {name:'Rapid Fire',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:92,pp:12,maxPp:12,fx:'multihit'},
+    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
+  ]},
+];
+
+// Slower base stat scaling
+const ENEMY_BASE_POOLS=[
+  {hp:105,atk:9,def:8,spd:8,evade:0,reward:80,gold:30},
+  {hp:130,atk:11,def:9,spd:9,evade:1,reward:150,gold:45},
+  {hp:158,atk:13,def:11,spd:11,evade:2,reward:230,gold:60},
+  {hp:128,atk:15,def:12,spd:12,evade:4,reward:320,gold:80},
+  {hp:220,atk:18,def:14,spd:14,evade:5,reward:450,gold:100},
+  {hp:268,atk:22,def:17,spd:16,evade:7,reward:620,gold:130},
+  {hp:330,atk:27,def:20,spd:18,evade:9,reward:880,gold:165},
+  {hp:400,atk:33,def:25,spd:20,evade:11,reward:1200,gold:200},
+  {hp:478,atk:40,def:30,spd:22,evade:13,reward:1600,gold:240},
+  {hp:565,atk:48,def:36,spd:24,evade:15,reward:2100,gold:285},
+  {hp:660,atk:57,def:42,spd:26,evade:17,reward:2700,gold:330},
+  {hp:765,atk:67,def:49,spd:28,evade:19,reward:3400,gold:380},
+];
+
+function buildEnemy(waveIdx){
+  const poolIdx=waveIdx%ENEMY_BASE_POOLS.length;
+  const e=ENEMY_BASE_POOLS[poolIdx];
+  const cycle=Math.floor(waveIdx/ENEMY_BASE_POOLS.length);
+  // Slower MK scaling
+  const mkScale=Math.pow(1.22,cycle);
+  const mkAtkScale=Math.pow(1.18,cycle);
+  const withinScale=1+poolIdx*0.05;
+  const dmgScale=Math.max(0.8,1+waveIdx*0.06+cycle*0.1);
+  const themeIdx=poolIdx%ENEMY_THEMES.length;
+  const theme=ENEMY_THEMES[themeIdx];
+  const sm=theme.statMod||{atk:1,def:1,spd:1,hp:1,evade:0};
+  const baseMoves=theme.buildFn(waveIdx,dmgScale);
+  let extraMoves=[];
+  if(cycle>=1)extraMoves.push({name:'MK Overdrive',dmg:[Math.round(22*dmgScale),Math.round(32*dmgScale)],acc:82,pp:7,maxPp:7,fx:'stun'});
+  if(cycle>=2){extraMoves.push({name:'MK Barrage',dmg:[Math.round(14*dmgScale),Math.round(20*dmgScale)],acc:88,pp:10,maxPp:10,fx:'multihit'});extraMoves.push({name:'MK Leech',dmg:[Math.round(12*dmgScale),Math.round(18*dmgScale)],acc:88,pp:8,maxPp:8,fx:'leech'});}
+  if(cycle>=3){extraMoves.push({name:'MK Destroyer',dmg:[Math.round(30*dmgScale),Math.round(44*dmgScale)],acc:68,pp:5,maxPp:5,fx:'pierce'});extraMoves.push({name:'MK Nullify',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'reflect'});}
+  const allMoves=[...baseMoves,...extraMoves].slice(0,6).map(m=>({...m,pp:m.maxPp}));
+  return{
+    name:getEnemyName(waveIdx),theme:theme.name,aiDesc:theme.aiDesc,
+    maxHp:Math.round(e.hp*mkScale*withinScale*sm.hp),
+    hp:Math.round(e.hp*mkScale*withinScale*sm.hp),
+    bAtk:Math.round(e.atk*mkAtkScale*withinScale*sm.atk),
+    bDef:Math.round(e.def*mkScale*withinScale*sm.def),
+    spd:Math.round(e.spd*Math.pow(1.07,cycle)*sm.spd),
+    evade:Math.round((e.evade||0)+(sm.evade||0)),
+    atkBuf:0,defBuf:0,defMult:1,atkBufTurns:0,defBufTurns:0,critBonus:0,defDebuf:0,defDebufTurns:0,
+    status:{burn:0,stun:0,regen:0,reflect:0,chill:0,poison:0,bleed:0,tauntTurns:0,shieldTurns:0},
+    reward:Math.round(e.reward*Math.pow(1.4,cycle)*(1+poolIdx*0.04)),
+    gold:Math.round(e.gold*Math.pow(1.3,cycle)*(1+poolIdx*0.04)),
+    moves:allMoves,cycle,waveIdx,
+    pendingStatus:{burn:0,poison:0,bleed:0,regen:0,chill:0},
+  };
+}
+
+const TIER_DMG_SCALE=[1.0,1.3,1.65,2.0];
+const BASE_PMOVES=[
+  {id:'quick',name:'Quick Strike',dmg:[14,20],acc:95,pp:18,maxPp:18,desc:'PWR 17 | ACC 95 | Always first',fx:null,tier:0,tipExtra:'Always acts first regardless of SPD.'},
+  {id:'heavy',name:'Heavy Blow',dmg:[22,30],acc:82,pp:10,maxPp:10,desc:'PWR 26 | ACC 82 | T0',fx:null,tier:0,tipExtra:'Powerful but lower accuracy.'},
+  {id:'barrage',name:'Rapid Barrage',dmg:[8,12],acc:88,pp:10,maxPp:10,desc:'PWR 10x2 | ACC 88 | Multi',fx:'multihit',tier:0,tipExtra:'Hits twice.'},
+  {id:'stun',name:'Shock Pulse',dmg:[18,25],acc:85,pp:10,maxPp:10,desc:'PWR 22 | 40% Stun',fx:'stun',tier:0,tipExtra:'40% chance to stun. Lens guarantees stun.'},
+  {id:'freeze_t0',name:'Cryo Snap',dmg:[16,22],acc:90,pp:10,maxPp:10,desc:'PWR 19 | SPD-1 2t',fx:'chill',tier:0,tipExtra:'Reduces enemy SPD by 1 for 2 turns.'},
+  {id:'nullblade',name:'Null Blade',dmg:[12,18],acc:92,pp:12,maxPp:12,desc:'PWR 15 | Steal buff',fx:'nullblade',tier:0,tipExtra:'Deals damage and steals one active buff from the enemy (ATK boost, DEF boost, or Shield). If no buff, does +25% damage instead.'},
+  {id:'rend',name:'Rend',dmg:[10,16],acc:94,pp:14,maxPp:14,desc:'PWR 13 | DEF-1 2t',fx:'rend',tier:0,tipExtra:'Shreds enemy DEF by 1 stage for 2 turns.'},
+  {id:'sweepkick',name:'Sweep Kick',dmg:[13,19],acc:90,pp:12,maxPp:12,desc:'PWR 16 | 30% SPD-1',fx:'sweepkick',tier:0,tipExtra:'30% chance to slow. Lens guarantees slow.'},
+  {id:'blast',name:'Overcharge',dmg:[30,40],acc:70,pp:7,maxPp:7,desc:'PWR 35 | ACC 70 | T1',fx:null,tier:1,tipExtra:'High damage, lower accuracy.'},
+  {id:'drain',name:'Life Drain',dmg:[22,30],acc:88,pp:10,maxPp:10,desc:'PWR 26 | Heal 50% | T1',fx:'drain',tier:1,tipExtra:'Steals 50% of damage as HP.'},
+  {id:'pierce',name:'Void Strike',dmg:[20,28],acc:80,pp:10,maxPp:10,desc:'PWR 24 | Bypass DEF | T1',fx:'pierce',tier:1,tipExtra:'Completely bypasses enemy DEF.'},
+  {id:'burn',name:'Incinerator',dmg:[16,24],acc:88,pp:12,maxPp:12,desc:'PWR 20 | Burn 3t | T1',fx:'burn',tier:1,tipExtra:'Burns enemy: 5.5% max HP per round 3 rounds.'},
+  {id:'chill',name:'Cryo Bolt',dmg:[20,28],acc:90,pp:10,maxPp:10,desc:'PWR 24 | SPD-2 3t | T1',fx:'chill',tier:1,tipExtra:'Chills enemy: SPD-2 for 3 turns.'},
+  {id:'poison',name:'Toxin Dart',dmg:[10,16],acc:92,pp:12,maxPp:12,desc:'PWR 13 | Poison 4t | T1',fx:'poison',tier:1,tipExtra:'Poisons: 4% max HP per round 4 rounds.'},
+  {id:'bleedstrike',name:'Rupture',dmg:[18,26],acc:86,pp:10,maxPp:10,desc:'PWR 22 | Bleed 3t | T1',fx:'bleed',tier:1,tipExtra:'Bleeds enemy: 5% max HP per round 3 rounds.'},
+  {id:'sunder',name:'Sunder',dmg:[15,22],acc:88,pp:10,maxPp:10,desc:'PWR 18 | DEF-2 3t | T1',fx:'sunder',tier:1,tipExtra:'Reduces enemy DEF by 2 stages for 3 turns.'},
+  {id:'overwatch',name:'Overwatch',dmg:[18,25],acc:92,pp:10,maxPp:10,desc:'PWR 21 | Counter next | T1',fx:'overwatch',tier:1,tipExtra:'Counter-hit: if enemy attacks, auto-deal 50% back.'},
+  {id:'gamble',name:"Gambler's Edge",dmg:[10,60],acc:90,pp:8,maxPp:8,desc:"PWR ??? | Luck | T1",fx:'gamble',tier:1,tipExtra:"Rolls random outcome:\n• JACKPOT(20%): massive crit\n• DRAIN(25%): heavy hit + lifesteal\n• DOUBLE(23%): hits twice\n• COUNTER(12%): reflect 60% next hit\n• SHIELD(10%): DEF x2 + small hit\n• BUST(10%): miss AND lose 5% HP\nLens forces JACKPOT. Jackpot Synergy amplifies all outcomes."},
+  {id:'snipe',name:'Sniper Shot',dmg:[36,50],acc:82,pp:8,maxPp:8,desc:'PWR 43 | Crit+30% | T2',fx:'highcrit',tier:2,tipExtra:'High crit chance (+30%). Sniper Protocol: crits bypass DEF.'},
+  {id:'chain',name:'Chain Attack',dmg:[26,36],acc:92,pp:10,maxPp:10,desc:'PWR 31 | +4 ATK/use | T2',fx:'chain',tier:2,tipExtra:'Gains +4 ATK per consecutive use. Chain Reactor doubles this.'},
+  {id:'regen',name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Regen 3t | T2',fx:'regen',tier:2,tipExtra:'Restores 7% max HP per end-of-round 3 rounds. Regen Overdrive doubles while shielded.'},
+  {id:'shield',name:'Iron Wall',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'DEF x2 2t | T2',fx:'ironwall',tier:2,tipExtra:'Doubles your DEF for 2 turns. Synergizes with Regen Overdrive.'},
+  {id:'leech',name:'Leech Field',dmg:[30,42],acc:88,pp:7,maxPp:7,desc:'PWR 36 | Heal+Poison | T2',fx:'leech',tier:2,tipExtra:'Drains HP (heal 50%) AND poisons enemy 3 turns.'},
+  {id:'reflect',name:'Nullify',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'Negate next attack | T2',fx:'reflect',tier:2,tipExtra:'Reflects the next incoming attack back. Reflect expires after 1 use.'},
+  {id:'execute_t2',name:'Finishing Blow',dmg:[28,40],acc:88,pp:8,maxPp:8,desc:'PWR 34 | +50% <30%HP | T2',fx:'executeblow',tier:2,tipExtra:'Deals +50% damage if enemy below 30% HP.'},
+  {id:'volley',name:'Arrow Volley',dmg:[10,15],acc:90,pp:10,maxPp:10,desc:'PWR 12 x3 | T2',fx:'triplehit',tier:2,tipExtra:'Hits 3 times.'},
+  {id:'nuke',name:'Annihilate',dmg:[65,82],acc:62,pp:4,maxPp:4,desc:'PWR 73 | ACC 62 | T3',fx:null,tier:3,tipExtra:'Massive damage, low accuracy.'},
+  {id:'glacial',name:'Glacial Nova',dmg:[46,60],acc:78,pp:5,maxPp:5,desc:'PWR 53 | Freeze+Bleed | T3',fx:'glacial',tier:3,tipExtra:'Heavy damage, 50% freeze, applies Bleed.'},
+  {id:'rupture_t3',name:'Deathmark',dmg:[42,56],acc:85,pp:5,maxPp:5,desc:'PWR 49 | +20% dmg 2t | T3',fx:'deathmark',tier:3,tipExtra:'Marks enemy: your attacks +20% for 2 turns.'},
+  {id:'overload_atk',name:'Overdrive',dmg:[36,50],acc:90,pp:6,maxPp:6,desc:'PWR 43 | ATK+CRIT stacks | T3',fx:'overloadhit',tier:3,tipExtra:'Each hit stacks +3 ATK and +2% Crit (up to 5 stacks).'},
+  {id:'supernova',name:'Supernova',dmg:[55,72],acc:72,pp:5,maxPp:5,desc:'PWR 63 | Burn+Bleed+Chill | T3',fx:'supernova',tier:3,tipExtra:'Massive blast. Applies Burn, Bleed, AND Chill.'},
+  {id:'wraithform',name:'Wraith Form',dmg:[0,0],acc:100,pp:4,maxPp:4,desc:'Evade+30% for 2t | T3',fx:'wraithform',tier:3,tipExtra:'Evade +30% for 2 turns.'},
+  {id:'taunt',name:'Taunt',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Force big moves 2t | Shop',fx:'taunt',tier:0,shopExclusive:true,tipExtra:'Forces enemy to use their highest-damage moves.'},
+  {id:'fortify_atk',name:'Power Up',dmg:[0,0],acc:100,pp:8,maxPp:8,desc:'ATK +2 3t | Shop',fx:'fortify_atk',tier:0,shopExclusive:true,tipExtra:'Raises ATK by 2 stages for 3 turns.'},
+  {id:'fortify_def',name:'Brace',dmg:[0,0],acc:100,pp:8,maxPp:8,desc:'DEF +2 3t | Shop',fx:'fortify_def',tier:0,shopExclusive:true,tipExtra:'Raises DEF by 2 stages for 3 turns.'},
+  {id:'sacrifice',name:'Blood Price',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Spend 15%HP → ATK+4 3t | Shop',fx:'sacrifice',tier:1,shopExclusive:true,tipExtra:'Sacrifice 15% HP for ATK+4 stages 3 turns.'},
+  {id:'doubleedge',name:'Double Edge',dmg:[50,70],acc:88,pp:5,maxPp:5,desc:'PWR 60 | 25% recoil | Shop',fx:'doubleedge',tier:2,shopExclusive:true,tipExtra:'Massive damage but 25% recoil.'},
+];
+
+BASE_PMOVES.forEach(m=>{
+  if(m.shopExclusive)return;
+  const s=TIER_DMG_SCALE[m.tier]||1.0;
+  if(m.dmg[0]>0)m.dmg=[Math.round(m.dmg[0]*s),Math.round(m.dmg[1]*s)];
+});
+
+// ── PRESTIGE SHOP (every full cycle = every 12 waves) ───────────────────────
+const PRESTIGE_ITEMS=[
+  {id:'p_gods_wrath',name:'God\'s Wrath',desc:'ATK +15 permanently, but lose 40 max HP',cost:0,downside:'MaxHP -40',apply:G=>{G.player.bAtk+=15;G.player.maxHp=Math.max(50,G.player.maxHp-40);G.player.hp=Math.min(G.player.hp,G.player.maxHp);}},
+  {id:'p_iron_throne',name:'Iron Throne',desc:'DEF +12, SPD -3 permanently',cost:0,downside:'SPD -3',apply:G=>{G.player.bDef+=12;G.player.spd=Math.max(3,G.player.spd-3);}},
+  {id:'p_glass_ascension',name:'Glass Ascension',desc:'ATK +10, Crit +20%, DEF halved permanently',cost:0,downside:'DEF halved',apply:G=>{G.player.bAtk+=10;G.player.critBonus=(G.player.critBonus||0)+20;G.player.bDef=Math.max(3,Math.round(G.player.bDef*0.5));}},
+  {id:'p_death_pact',name:'Death Pact',desc:'Max HP +100, heal full, but all moves lose 3 max PP',cost:0,downside:'All moves -3 PP',apply:G=>{G.player.maxHp+=100;G.player.hp=G.player.maxHp;G.player.moves.forEach(m=>{m.maxPp=Math.max(2,m.maxPp-3);m.pp=Math.min(m.pp,m.maxPp);});}},
+  {id:'p_berserker_pact',name:'Berserker Pact',desc:'ATK +8, Crit+15%, but take 15% more damage permanently',cost:0,downside:'+15% incoming dmg',apply:G=>{G.player.bAtk+=8;G.player.critBonus=(G.player.critBonus||0)+15;G.player.incomingDmgMult=(G.player.incomingDmgMult||1.0)*1.15;}},
+  {id:'p_void_core',name:'Void Core',desc:'All moves bypass DEF permanently, ATK -4',cost:0,downside:'ATK -4',apply:G=>{G.player.allPierce=true;G.player.bAtk=Math.max(3,G.player.bAtk-4);}},
+  {id:'p_speed_demon',name:'Speed Demon Core',desc:'SPD +8, DEF -5 permanently',cost:0,downside:'DEF -5',apply:G=>{G.player.spd+=8;G.player.bDef=Math.max(3,G.player.bDef-5);}},
+  {id:'p_pp_overflow',name:'PP Overflow',desc:'All moves max PP +6, ATK -3 permanently',cost:0,downside:'ATK -3',apply:G=>{G.player.moves.forEach(m=>{m.maxPp+=6;m.pp=Math.min(m.pp+6,m.maxPp);});G.player.bAtk=Math.max(3,G.player.bAtk-3);}},
+];
+
+function rollPrestigeShop(){
+  const shuffled=[...PRESTIGE_ITEMS].sort(()=>Math.random()-0.5);
+  return shuffled.slice(0,3);
+}
+
 const SHOP_CATALOG=[
   {id:'s_heal',name:'Medpack',desc:'Restore 35+HP',cost:60,shopOnly:false,apply:G=>{G.items.heal+=1;}},
   {id:'s_ether',name:'Ether',desc:'Restore all PP',cost:90,shopOnly:false,apply:G=>{G.items.ether+=1;}},
   {id:'s_boost',name:'Stim',desc:'ATK +40% for 3 turns',cost:80,shopOnly:false,apply:G=>{G.items.boost+=1;}},
   {id:'s_shield',name:'Shield Cell',desc:'DEF x2 for 2 turns',cost:75,shopOnly:false,apply:G=>{G.items.shield=(G.items.shield||0)+1;}},
   {id:'s_flash',name:'Flash Grenade',desc:'Guarantee stun next turn',cost:100,shopOnly:false,apply:G=>{G.items.flash=(G.items.flash||0)+1;}},
-  {id:'s_clens',name:'Critical Lens',desc:'+20% ACC & guarantee next effect on next move',cost:70,shopOnly:false,apply:G=>{G.items.clens=(G.items.clens||0)+1;}},
+  {id:'s_clens',name:'Critical Lens',desc:'+20% ACC & guarantee next effect',cost:70,shopOnly:false,apply:G=>{G.items.clens=(G.items.clens||0)+1;}},
   {id:'s_atkup',name:'ATK Shard',desc:'Permanently +4 ATK',cost:140,shopOnly:true,rare:true,apply:G=>{G.player.bAtk+=4;}},
   {id:'s_defup',name:'DEF Shard',desc:'Permanently +4 DEF',cost:140,shopOnly:true,rare:true,apply:G=>{G.player.bDef+=4;}},
-  {id:'s_spdboost',name:'Velocity Core',desc:'Permanently +3 SPD',cost:130,shopOnly:true,rare:true,apply:G=>{G.player.spd+=3;}},
+  {id:'s_spdboost',name:'Velocity Core',desc:'Permanently +4 SPD',cost:110,shopOnly:true,rare:true,apply:G=>{G.player.spd+=4;}},
   {id:'s_critring',name:'Sniper Ring',desc:'Crit +12% permanently',cost:150,shopOnly:true,rare:true,apply:G=>{G.player.critBonus=(G.player.critBonus||0)+12;}},
   {id:'s_hpboost',name:'Biotic Cell',desc:'Max HP +50, heal 30',cost:160,shopOnly:true,rare:true,apply:G=>{G.player.maxHp+=50;G.player.hp=Math.min(G.player.hp+30,G.player.maxHp);}},
   {id:'s_vampserum',name:'Vamp Serum',desc:'All attacks drain 10% HP',cost:200,shopOnly:true,rare:true,apply:G=>{G.player.vamp=true;G.player.vampBonus=(G.player.vampBonus||0)+0.10;}},
@@ -123,8 +363,6 @@ const SHOP_CATALOG=[
   {id:'s_trait_scav',name:'Salvage Module',desc:'Trait: +25g per wave clear',cost:130,shopOnly:true,rare:true,traitId:'t_scavenger',apply:G=>{if(!G.traits.find(t=>t.id==='t_scavenger')){const t=TRAITS.find(x=>x.id==='t_scavenger');if(t)G.traits.push(t);renderTraits();}}},
   {id:'s_trait_tank',name:'Reactive Armor',desc:'Trait: Incoming dmg -10%',cost:160,shopOnly:true,rare:true,traitId:'t_tank',apply:G=>{if(!G.traits.find(t=>t.id==='t_tank')){const t=TRAITS.find(x=>x.id==='t_tank');if(t)G.traits.push(t);renderTraits();}}},
   {id:'s_trait_momentum',name:'Momentum Engine',desc:'Trait: Consecutive hits +5% dmg',cost:200,shopOnly:true,rare:true,traitId:'t_momentum',apply:G=>{if(!G.traits.find(t=>t.id==='t_momentum')){const t=TRAITS.find(x=>x.id==='t_momentum');if(t)G.traits.push(t);renderTraits();}}},
-  {id:'s_trait_vampire',name:'Bloodthirst Core',desc:'Trait: Drain 8% dmg as HP',cost:220,shopOnly:true,rare:true,traitId:'t_vampire_tr',apply:G=>{if(!G.traits.find(t=>t.id==='t_vampire_tr')){const t=TRAITS.find(x=>x.id==='t_vampire_tr');if(t){G.traits.push(t);G.player.vamp=true;G.player.vampBonus=Math.max(G.player.vampBonus||0,0.08);}renderTraits();}}},
-  {id:'s_trait_critmast',name:'Critical OS',desc:'Trait: DoT on crit hits',cost:190,shopOnly:true,rare:true,traitId:'t_critburn',apply:G=>{if(!G.traits.find(t=>t.id==='t_critburn')){const t=TRAITS.find(x=>x.id==='t_critburn');if(t)G.traits.push(t);renderTraits();}}},
 ];
 
 function rollShop(){
@@ -132,11 +370,38 @@ function rollShop(){
   const rareItems=SHOP_CATALOG.filter(x=>x.shopOnly&&x.rare).filter(()=>Math.random()<0.18);
   return[...standard,...rareItems];
 }
-function renderShop(){
+
+function renderShop(isPrestige=false){
   const grid=document.getElementById('shop-grid');grid.innerHTML='';
   document.getElementById('gold-display').textContent=G.gold;
-  if(!G.shop||!G.shop.length){document.getElementById('shop-status').textContent='Sold out';grid.innerHTML='<div class="shop-empty">Sold out — restocks next wave</div>';return;}
+  if(isPrestige){
+    const banner=document.createElement('div');banner.className='prestige-shop-banner';
+    banner.innerHTML='<b>Prestige Shop</b> — cycle complete! Choose a powerful upgrade with a permanent downside. These cannot be undone.';
+    grid.appendChild(banner);
+    (G.prestigeShop||[]).forEach((item,i)=>{
+      const wrap=document.createElement('div');wrap.className='tooltip-wrap';
+      const btn=document.createElement('button');btn.className='shop-item';
+      btn.disabled=G.busy||G.phase!=='player';
+      btn.innerHTML='<span class="shop-item-name" style="color:#7c3aed">'+item.name+'</span><span class="shop-item-cost" style="color:#c0392b">'+item.downside+'</span>';
+      btn.addEventListener('click',()=>{
+        if(G.busy)return;
+        item.apply(G);
+        G.prestigeShopUsed=true;
+        const idx=G.prestigeShop.indexOf(item);if(idx>=0)G.prestigeShop.splice(idx,1);
+        addLog('> Prestige: '+item.name+' ('+item.downside+')','crit');
+        G.showPrestige=false;renderShop();renderAll();
+      });
+      const tip=document.createElement('div');tip.className='tooltip-box';
+      tip.textContent=item.name+'\n\nUPSIDE: '+item.desc+'\nDOWNSIDE: '+item.downside;
+      wrap.appendChild(btn);wrap.appendChild(tip);grid.appendChild(wrap);
+    });
+    const skipBtn=document.createElement('button');skipBtn.textContent='Skip prestige shop';skipBtn.style.cssText='width:100%;margin-top:4px;font-size:11px;padding:3px;border:0.5px solid #ccc;border-radius:4px;cursor:pointer';
+    skipBtn.addEventListener('click',()=>{G.showPrestige=false;renderShop();});
+    grid.appendChild(skipBtn);
+    return;
+  }
   document.getElementById('shop-status').textContent='Open';
+  if(!G.shop||!G.shop.length){document.getElementById('shop-status').textContent='Sold out';grid.innerHTML='<div class="shop-empty">Sold out — restocks next wave</div>';return;}
   G.shop.forEach((item,i)=>{
     if(item.traitId&&G.traits.find(t=>t.id===item.traitId))return;
     const wrap=document.createElement('div');wrap.className='tooltip-wrap';
@@ -156,202 +421,12 @@ function renderShop(){
   });
 }
 
-const TIER_DMG_SCALE=[1.0,1.3,1.65,2.0];
-const BASE_PMOVES=[
-  {id:'quick',name:'Quick Strike',dmg:[14,20],acc:95,pp:18,maxPp:18,desc:'PWR 17 | ACC 95 | T0 | Always first',fx:null,tier:0,tipExtra:'Always acts first regardless of SPD. Fast and reliable.'},
-  {id:'heavy',name:'Heavy Blow',dmg:[22,30],acc:82,pp:10,maxPp:10,desc:'PWR 26 | ACC 82 | T0',fx:null,tier:0,tipExtra:'Powerful but lower accuracy. Pure damage.'},
-  {id:'barrage',name:'Rapid Barrage',dmg:[8,12],acc:88,pp:10,maxPp:10,desc:'PWR 10x2 | ACC 88 | Multi | T0',fx:'multihit',tier:0,tipExtra:'Hits twice.'},
-  {id:'stun',name:'Shock Pulse',dmg:[18,25],acc:85,pp:10,maxPp:10,desc:'PWR 22 | 40% Stun | T0',fx:'stun',tier:0,tipExtra:'40% chance to stun. Lens guarantees stun.'},
-  {id:'freeze_t0',name:'Cryo Snap',dmg:[16,22],acc:90,pp:10,maxPp:10,desc:'PWR 19 | SPD-1 2t | T0',fx:'chill',tier:0,tipExtra:'Reduces enemy SPD by 1 for 2 turns. Lens guarantees chill.'},
-  {id:'thorn',name:'Thorn Strike',dmg:[12,18],acc:92,pp:12,maxPp:12,desc:'PWR 15 | Thorn 10% | T0',fx:'thornstrike',tier:0,tipExtra:'Deals damage + reflects 10% back.'},
-  {id:'rend',name:'Rend',dmg:[10,16],acc:94,pp:14,maxPp:14,desc:'PWR 13 | DEF-1 2t | T0',fx:'rend',tier:0,tipExtra:'Shreds enemy DEF by 1 stage for 2 turns.'},
-  {id:'sweepkick',name:'Sweep Kick',dmg:[13,19],acc:90,pp:12,maxPp:12,desc:'PWR 16 | 30% SPD-1 | T0',fx:'sweepkick',tier:0,tipExtra:'30% chance to slow. Lens guarantees slow.'},
-  {id:'blast',name:'Overcharge',dmg:[30,40],acc:70,pp:7,maxPp:7,desc:'PWR 35 | ACC 70 | T1',fx:null,tier:1,tipExtra:'High damage, lower accuracy.'},
-  {id:'drain',name:'Life Drain',dmg:[22,30],acc:88,pp:10,maxPp:10,desc:'PWR 26 | Heal 50% | T1',fx:'drain',tier:1,tipExtra:'Steals 50% of damage dealt as HP.'},
-  {id:'pierce',name:'Void Strike',dmg:[20,28],acc:80,pp:10,maxPp:10,desc:'PWR 24 | Bypass DEF | T1',fx:'pierce',tier:1,tipExtra:'Completely bypasses enemy DEF.'},
-  {id:'burn',name:'Incinerator',dmg:[16,24],acc:88,pp:12,maxPp:12,desc:'PWR 20 | Burn 3t | T1',fx:'burn',tier:1,tipExtra:'Burns enemy: 5.5% max HP/round 3 rounds. Lens guarantees burn.'},
-  {id:'chill',name:'Cryo Bolt',dmg:[20,28],acc:90,pp:10,maxPp:10,desc:'PWR 24 | SPD-2 3t | T1',fx:'chill',tier:1,tipExtra:'Chills enemy: SPD-2 for 3 turns. Lens guarantees chill.'},
-  {id:'poison',name:'Toxin Dart',dmg:[10,16],acc:92,pp:12,maxPp:12,desc:'PWR 13 | Poison 4t | T1',fx:'poison',tier:1,tipExtra:'Poisons: 4% max HP per round 4 rounds. Lens guarantees poison.'},
-  {id:'bleedstrike',name:'Rupture',dmg:[18,26],acc:86,pp:10,maxPp:10,desc:'PWR 22 | Bleed 3t | T1',fx:'bleed',tier:1,tipExtra:'Bleeds enemy: 5% max HP per round 3 rounds.'},
-  {id:'sunder',name:'Sunder',dmg:[15,22],acc:88,pp:10,maxPp:10,desc:'PWR 18 | DEF-2 3t | T1',fx:'sunder',tier:1,tipExtra:'Reduces enemy DEF by 2 stages for 3 turns.'},
-  {id:'overwatch',name:'Overwatch',dmg:[18,25],acc:92,pp:10,maxPp:10,desc:'PWR 21 | Counter next | T1',fx:'overwatch',tier:1,tipExtra:'Counter-hit: if enemy attacks, auto-deal 50% back.'},
-  {id:'gamble',name:"Gambler's Edge",dmg:[10,60],acc:90,pp:8,maxPp:8,desc:"PWR ???  |  Luck | T1",fx:'gamble',tier:1,tipExtra:"Rolls a random outcome each use. Possible results:\n• JACKPOT: massive crit hit\n• DRAIN: heavy hit + lifesteal\n• DOUBLE: hits twice\n• SHIELD: defend + small hit\n• BUST: whiff — no damage\nWith Jackpot Synergy upgrade, each outcome is amplified.\nLens forces JACKPOT result."},
-  {id:'snipe',name:'Sniper Shot',dmg:[36,50],acc:82,pp:8,maxPp:8,desc:'PWR 43 | Crit+30% | T2',fx:'highcrit',tier:2,tipExtra:'High crit chance (+30%). With Sniper Protocol: crits bypass DEF.'},
-  {id:'chain',name:'Chain Attack',dmg:[26,36],acc:92,pp:10,maxPp:10,desc:'PWR 31 | +12ea | T2',fx:'chain',tier:2,tipExtra:'Gains +12 ATK per consecutive use. Chain Reactor doubles this to +8 each (see upgrade).'},
-  {id:'regen',name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Regen 3t | T2',fx:'regen',tier:2,tipExtra:'Restores 7% max HP each end-of-round 3 rounds. Doubled while Iron Wall active (Regen Overdrive upgrade).'},
-  {id:'shield',name:'Iron Wall',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'DEF x2 2t | T2',fx:'ironwall',tier:2,tipExtra:'Doubles your DEF for 2 turns. Synergizes with Regen Overdrive.'},
-  {id:'leech',name:'Leech Field',dmg:[30,42],acc:88,pp:7,maxPp:7,desc:'PWR 36 | Heal+Poison | T2',fx:'leech',tier:2,tipExtra:'Drains HP (heal 50%) AND poisons enemy 3 turns.'},
-  {id:'reflect',name:'Nullify',dmg:[0,0],acc:100,pp:5,maxPp:5,desc:'Negate next attack | T2',fx:'reflect',tier:2,tipExtra:'Reflects the next incoming attack back at attacker.'},
-  {id:'execute_t2',name:'Finishing Blow',dmg:[28,40],acc:88,pp:8,maxPp:8,desc:'PWR 34 | +50% <30%HP | T2',fx:'executeblow',tier:2,tipExtra:'Deals +50% damage if enemy is below 30% HP. With Cryo Predator: threshold rises to 40% when enemy is Chilled.'},
-  {id:'volley',name:'Arrow Volley',dmg:[10,15],acc:90,pp:10,maxPp:10,desc:'PWR 12 x3 | T2',fx:'triplehit',tier:2,tipExtra:'Hits 3 times.'},
-  {id:'nuke',name:'Annihilate',dmg:[65,82],acc:62,pp:4,maxPp:4,desc:'PWR 73 | ACC 62 | T3',fx:null,tier:3,tipExtra:'Massive damage, low accuracy.'},
-  {id:'glacial',name:'Glacial Nova',dmg:[46,60],acc:78,pp:5,maxPp:5,desc:'PWR 53 | Freeze+Bleed | T3',fx:'glacial',tier:3,tipExtra:'Heavy damage, 50% freeze, applies Bleed.'},
-  {id:'rupture_t3',name:'Deathmark',dmg:[42,56],acc:85,pp:5,maxPp:5,desc:'PWR 49 | +20% dmg 2t | T3',fx:'deathmark',tier:3,tipExtra:'Marks enemy: your attacks +20% for 2 turns. With Death Spiral: DoT damage is doubled during mark.'},
-  {id:'overload_atk',name:'Overdrive',dmg:[36,50],acc:90,pp:6,maxPp:6,desc:'PWR 43 | Stacks ATK+CRIT | T3',fx:'overloadhit',tier:3,tipExtra:'Each hit permanently stacks +3 ATK and +2% Crit (up to 5 stacks). (Reworked from original.)'},
-  {id:'supernova',name:'Supernova',dmg:[55,72],acc:72,pp:5,maxPp:5,desc:'PWR 63 | Burn+Bleed+Chill | T3',fx:'supernova',tier:3,tipExtra:'Massive blast. Applies Burn, Bleed, AND Chill.'},
-  {id:'wraithform',name:'Wraith Form',dmg:[0,0],acc:100,pp:4,maxPp:4,desc:'Evade+30% for 2t | T3',fx:'wraithform',tier:3,tipExtra:'Evade +30% for 2 turns.'},
-  {id:'taunt',name:'Taunt',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Force big moves 2t | Shop',fx:'taunt',tier:0,shopExclusive:true,tipExtra:'Forces enemy to use their highest-damage moves.'},
-  {id:'fortify_atk',name:'Power Up',dmg:[0,0],acc:100,pp:8,maxPp:8,desc:'ATK +2 3t | Shop',fx:'fortify_atk',tier:0,shopExclusive:true,tipExtra:'Raises your ATK by 2 stages for 3 turns.'},
-  {id:'fortify_def',name:'Brace',dmg:[0,0],acc:100,pp:8,maxPp:8,desc:'DEF +2 3t | Shop',fx:'fortify_def',tier:0,shopExclusive:true,tipExtra:'Raises your DEF by 2 stages for 3 turns.'},
-  {id:'sacrifice',name:'Blood Price',dmg:[0,0],acc:100,pp:6,maxPp:6,desc:'Spend 15%HP → ATK+4 3t | Shop',fx:'sacrifice',tier:1,shopExclusive:true,tipExtra:'Sacrifice 15% HP for ATK+4 stages 3 turns.'},
-  {id:'doubleedge',name:'Double Edge',dmg:[50,70],acc:88,pp:5,maxPp:5,desc:'PWR 60 | 25% recoil | Shop',fx:'doubleedge',tier:2,shopExclusive:true,tipExtra:'Massive damage but 25% recoil.'},
-];
-
-BASE_PMOVES.forEach(m=>{
-  if(m.shopExclusive)return;
-  const s=TIER_DMG_SCALE[m.tier]||1.0;
-  if(m.dmg[0]>0)m.dmg=[Math.round(m.dmg[0]*s),Math.round(m.dmg[1]*s)];
-});
-
-const ENEMY_THEMES=[
-  {name:'Brawler',aiDesc:'Aggressive melee. Prioritizes highest damage. Uses Power Up when healthy.',buildFn:(wi,ds)=>[
-    {name:'Power Slam',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:90,pp:14,maxPp:14,fx:null},
-    {name:'Steady Jab',dmg:[Math.round(13*ds),Math.round(19*ds)],acc:100,pp:16,maxPp:16,fx:null},
-    {name:'Headbutt',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:12,maxPp:12,fx:null},
-    {name:'Power Up',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'fortify_atk'},
-  ]},
-  {name:'Leech Vampire',aiDesc:'Sustain fighter. Uses drain when HP drops. Poison counters regen.',buildFn:(wi,ds)=>[
-    {name:'Power Slam',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:90,pp:12,maxPp:12,fx:null},
-    {name:'Life Drain',dmg:[Math.round(10*ds),Math.round(17*ds)],acc:85,pp:12,maxPp:12,fx:'drain'},
-    {name:'Leech Field',dmg:[Math.round(15*ds),Math.round(21*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
-    {name:'Brace',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_def'},
-  ]},
-  {name:'Pyromaniac',aiDesc:'DoT specialist. Stacks Burn then deals damage. Kill fast before fire accumulates.',buildFn:(wi,ds)=>[
-    {name:'Burn Strike',dmg:[Math.round(14*ds),Math.round(22*ds)],acc:88,pp:12,maxPp:12,fx:'burn'},
-    {name:'Inferno',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:72,pp:7,maxPp:7,fx:'burn'},
-    {name:'Flame Jab',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:95,pp:14,maxPp:14,fx:'burn'},
-    {name:'Backdraft',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:82,pp:10,maxPp:10,fx:null},
-    {name:'Brace',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'fortify_def'},
-  ]},
-  {name:'Glass Cannon',aiDesc:'Extreme damage, low DEF. Kill fast — low HP but can one-shot.',buildFn:(wi,ds)=>[
-    {name:'All-In',dmg:[Math.round(36*ds),Math.round(50*ds)],acc:60,pp:6,maxPp:6,fx:null},
-    {name:'Sniper Shot',dmg:[Math.round(30*ds),Math.round(42*ds)],acc:80,pp:8,maxPp:8,fx:'highcrit'},
-    {name:'Quick Burst',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:95,pp:14,maxPp:14,fx:null},
-    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
-  ]},
-  {name:'Stunner',aiDesc:'Tries to stun every other turn. Uses big hits while paralyzed.',buildFn:(wi,ds)=>[
-    {name:'Shock Blast',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:82,pp:10,maxPp:10,fx:'stun'},
-    {name:'Chain Shock',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:88,pp:12,maxPp:12,fx:'stun'},
-    {name:'EMP Strike',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:75,pp:8,maxPp:8,fx:'stun'},
-    {name:'Overcharge',dmg:[Math.round(30*ds),Math.round(42*ds)],acc:68,pp:5,maxPp:5,fx:null},
-    {name:'Steady Jab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:100,pp:12,maxPp:12,fx:null},
-  ]},
-  {name:'Toxicologist',aiDesc:'Stacks poison and burn together. Prioritize burst or use immunities.',buildFn:(wi,ds)=>[
-    {name:'Toxin Dart',dmg:[Math.round(8*ds),Math.round(14*ds)],acc:92,pp:12,maxPp:12,fx:'poison'},
-    {name:'Venom Strike',dmg:[Math.round(16*ds),Math.round(24*ds)],acc:88,pp:10,maxPp:10,fx:'poison'},
-    {name:'Leech Field',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:8,maxPp:8,fx:'leech'},
-    {name:'Acid Splash',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:90,pp:12,maxPp:12,fx:'burn'},
-    {name:'Power Slam',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:88,pp:10,maxPp:10,fx:null},
-  ]},
-  {name:'Berserker',aiDesc:'Gets stronger as HP drops. Bleed + heavy attacks. Frenzy below 40% HP.',buildFn:(wi,ds)=>[
-    {name:'Rupture',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:84,pp:9,maxPp:9,fx:'bleed'},
-    {name:'Frenzy Slam',dmg:[Math.round(26*ds),Math.round(38*ds)],acc:82,pp:8,maxPp:8,fx:null},
-    {name:'Barrage',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:90,pp:10,maxPp:10,fx:'multihit'},
-    {name:'Bleed Strike',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:90,pp:11,maxPp:11,fx:'bleed'},
-    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
-  ]},
-  {name:'Void Piercer',aiDesc:'All attacks bypass DEF. Iron Wall is useless. Use high HP + drain.',buildFn:(wi,ds)=>[
-    {name:'Void Pierce',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:82,pp:10,maxPp:10,fx:'pierce'},
-    {name:'Armor Shred',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:11,maxPp:11,fx:'pierce'},
-    {name:'Cryo Bolt',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:90,pp:10,maxPp:10,fx:'chill'},
-    {name:'Iron Wall',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'ironwall'},
-    {name:'Steady Jab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:100,pp:10,maxPp:10,fx:null},
-  ]},
-  {name:'Frost Warden',aiDesc:'Slows and freezes. Applies Chill every chance. Burn removes chill stacks.',buildFn:(wi,ds)=>[
-    {name:'Blizzard',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:88,pp:12,maxPp:12,fx:'chill'},
-    {name:'Ice Lance',dmg:[Math.round(24*ds),Math.round(34*ds)],acc:80,pp:9,maxPp:9,fx:'chill'},
-    {name:'Frost Jab',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:96,pp:14,maxPp:14,fx:'chill'},
-    {name:'Iron Wall',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'ironwall'},
-    {name:'Brace',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'fortify_def'},
-  ]},
-  {name:'Phantom Blade',aiDesc:'High evade, crit-focused. Hard to hit but glass.',buildFn:(wi,ds)=>[
-    {name:'Shadow Stab',dmg:[Math.round(22*ds),Math.round(32*ds)],acc:90,pp:12,maxPp:12,fx:'highcrit'},
-    {name:'Phantom Slash',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:82,pp:9,maxPp:9,fx:'highcrit'},
-    {name:'Nullify',dmg:[0,0],acc:100,pp:3,maxPp:3,fx:'reflect'},
-    {name:'Quick Stab',dmg:[Math.round(14*ds),Math.round(20*ds)],acc:98,pp:14,maxPp:14,fx:null},
-    {name:'Rupture',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:85,pp:8,maxPp:8,fx:'bleed'},
-  ],extraEvade:15},
-  {name:'Regenerator',aiDesc:'Tanks and heals back. High DEF + Regen. Use Pierce or DoT.',buildFn:(wi,ds)=>[
-    {name:'Regenerate',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'regen'},
-    {name:'Slam',dmg:[Math.round(20*ds),Math.round(28*ds)],acc:88,pp:12,maxPp:12,fx:null},
-    {name:'Brace',dmg:[0,0],acc:100,pp:6,maxPp:6,fx:'fortify_def'},
-    {name:'Heavy Strike',dmg:[Math.round(26*ds),Math.round(36*ds)],acc:80,pp:8,maxPp:8,fx:null},
-    {name:'Drain Field',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:85,pp:9,maxPp:9,fx:'drain'},
-  ],extraDef:8},
-  {name:'Deathbringer',aiDesc:'Pure offense. No defense. Highest damage every turn. Boost DEF and heal.',buildFn:(wi,ds)=>[
-    {name:'Oblivion',dmg:[Math.round(36*ds),Math.round(50*ds)],acc:64,pp:5,maxPp:5,fx:null},
-    {name:'Annihilate',dmg:[Math.round(42*ds),Math.round(58*ds)],acc:58,pp:4,maxPp:4,fx:null},
-    {name:'Devastate',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:74,pp:7,maxPp:7,fx:null},
-    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
-    {name:'Quick Burst',dmg:[Math.round(16*ds),Math.round(22*ds)],acc:96,pp:14,maxPp:14,fx:null},
-  ]},
-  {name:'Armor Shredder',aiDesc:'Stacks DEF debuffs before unleashing big hits. Iron Wall early.',buildFn:(wi,ds)=>[
-    {name:'Rend',dmg:[Math.round(12*ds),Math.round(18*ds)],acc:94,pp:14,maxPp:14,fx:'rend'},
-    {name:'Sunder',dmg:[Math.round(15*ds),Math.round(22*ds)],acc:88,pp:10,maxPp:10,fx:'sunder'},
-    {name:'Expose',dmg:[Math.round(18*ds),Math.round(28*ds)],acc:86,pp:10,maxPp:10,fx:'rend'},
-    {name:'Crusher',dmg:[Math.round(28*ds),Math.round(40*ds)],acc:80,pp:7,maxPp:7,fx:null},
-  ]},
-  {name:'Speed Demon',aiDesc:'Extremely high SPD. Chain attack snowballs. Use Chill to slow.',buildFn:(wi,ds)=>[
-    {name:'Blitz',dmg:[Math.round(18*ds),Math.round(26*ds)],acc:96,pp:14,maxPp:14,fx:null},
-    {name:'Chain Strike',dmg:[Math.round(22*ds),Math.round(30*ds)],acc:92,pp:10,maxPp:10,fx:'chain'},
-    {name:'Rapid Fire',dmg:[Math.round(10*ds),Math.round(16*ds)],acc:92,pp:12,maxPp:12,fx:'multihit'},
-    {name:'Power Up',dmg:[0,0],acc:100,pp:5,maxPp:5,fx:'fortify_atk'},
-  ],extraSpd:8},
-];
-
-const ENEMY_BASE_POOLS=[
-  {hp:110,atk:9,def:8,spd:8,evade:0,reward:80,gold:30},
-  {hp:140,atk:12,def:10,spd:10,evade:2,reward:150,gold:45},
-  {hp:170,atk:15,def:12,spd:12,evade:4,reward:230,gold:60},
-  {hp:135,atk:18,def:14,spd:14,evade:6,reward:320,gold:80},
-  {hp:240,atk:22,def:17,spd:16,evade:8,reward:450,gold:100},
-  {hp:295,atk:27,def:21,spd:18,evade:10,reward:620,gold:130},
-  {hp:370,atk:34,def:26,spd:21,evade:13,reward:880,gold:165},
-  {hp:460,atk:42,def:32,spd:24,evade:16,reward:1200,gold:200},
-  {hp:560,atk:52,def:39,spd:26,evade:18,reward:1600,gold:240},
-  {hp:670,atk:62,def:46,spd:28,evade:20,reward:2100,gold:285},
-  {hp:800,atk:74,def:55,spd:30,evade:23,reward:2700,gold:330},
-  {hp:950,atk:88,def:64,spd:32,evade:25,reward:3400,gold:380},
-];
-
-function buildEnemy(waveIdx){
-  const poolIdx=waveIdx%ENEMY_BASE_POOLS.length;
-  const e=ENEMY_BASE_POOLS[poolIdx];
-  const cycle=Math.floor(waveIdx/ENEMY_BASE_POOLS.length);
-  const mkScale=Math.pow(1.35,cycle);
-  const mkAtkScale=Math.pow(1.28,cycle);
-  const withinScale=1+poolIdx*0.06;
-  const dmgScale=Math.max(0.8,1+waveIdx*0.07+cycle*0.12);
-  const themeIdx=poolIdx%ENEMY_THEMES.length;
-  const theme=ENEMY_THEMES[themeIdx];
-  const baseMoves=theme.buildFn(waveIdx,dmgScale);
-  let extraMoves=[];
-  if(cycle>=1)extraMoves.push({name:'MK Overdrive',dmg:[Math.round(26*dmgScale),Math.round(38*dmgScale)],acc:82,pp:7,maxPp:7,fx:'stun'});
-  if(cycle>=2){extraMoves.push({name:'MK Barrage',dmg:[Math.round(16*dmgScale),Math.round(24*dmgScale)],acc:88,pp:10,maxPp:10,fx:'multihit'});extraMoves.push({name:'MK Leech',dmg:[Math.round(14*dmgScale),Math.round(22*dmgScale)],acc:88,pp:8,maxPp:8,fx:'leech'});}
-  if(cycle>=3){extraMoves.push({name:'MK Destroyer',dmg:[Math.round(36*dmgScale),Math.round(52*dmgScale)],acc:68,pp:5,maxPp:5,fx:'pierce'});extraMoves.push({name:'MK Nullify',dmg:[0,0],acc:100,pp:4,maxPp:4,fx:'reflect'});}
-  const allMoves=[...baseMoves,...extraMoves].slice(0,6).map(m=>({...m,pp:m.maxPp}));
-  return{
-    name:getEnemyName(waveIdx),theme:theme.name,aiDesc:theme.aiDesc,
-    maxHp:Math.round(e.hp*mkScale*withinScale),hp:Math.round(e.hp*mkScale*withinScale),
-    bAtk:Math.round(e.atk*mkAtkScale*withinScale)+(theme.extraAtk||0),
-    bDef:Math.round(e.def*mkScale*withinScale)+(theme.extraDef||0),
-    spd:Math.round(e.spd*Math.pow(1.1,cycle))+(theme.extraSpd||0),
-    evade:Math.round((e.evade||0)+(theme.extraEvade||0)),
-    atkBuf:0,defBuf:0,defMult:1,atkBufTurns:0,defBufTurns:0,critBonus:0,defDebuf:0,defDebufTurns:0,
-    status:{burn:0,stun:0,regen:0,reflect:0,chill:0,poison:0,bleed:0,tauntTurns:0,shieldTurns:0},
-    reward:Math.round(e.reward*Math.pow(1.5,cycle)*(1+poolIdx*0.05)),
-    gold:Math.round(e.gold*Math.pow(1.4,cycle)*(1+poolIdx*0.05)),
-    moves:allMoves,cycle,waveIdx,
-    pendingStatus:{burn:0,poison:0,bleed:0,regen:0,chill:0},
-  };
-}
-
 const ATK_PIERCE_BASE=16;
 const getAtk=c=>{
   let a=Math.max(1,Math.round(c.bAtk*(1+c.atkBuf*0.22)));
   if(G.player===c&&c.berserk&&c.hp/c.maxHp<0.3)a=Math.round(a*2);
   if(G.player===c&&c.status&&c.status.stimTurns>0)a=Math.round(a*1.4);
-  if(G.player===c&&c.overload)a+=c.overloadStacks*3; // REWORKED: was *2
+  if(G.player===c&&c.overload)a+=c.overloadStacks*3;
   if(c.status&&c.status.chill>0)a=Math.round(a*0.88);
   if(G.deathmarkActive&&c===G.player)a=Math.round(a*1.2);
   return a;
@@ -366,37 +441,45 @@ const getDef=c=>{
 const getCrit=c=>{
   let cr=clamp(10+(c.critBonus||0),0,CRIT_CAP);
   if(G.blurSteelUpg&&c===G.player)cr=clamp(cr+Math.floor(c.spd/5)*3,0,CRIT_CAP);
-  // SYNERGY: Overload stacks also give crit (Overload Core rework)
   if(G.player===c&&c.overload)cr=clamp(cr+c.overloadStacks*2,0,CRIT_CAP);
   return cr;
 };
 const getEvade=c=>clamp(5+(c.evadeBonus||0)+(c.status&&c.status.wraithTurns>0?30:0),0,EVADE_CAP);
 const getAIEvade=c=>clamp(c.evade||0,0,EVADE_CAP);
 
+// ── SPD damage bonus: going first AND having higher SPD deals extra ───────────
+function getSpdDmgBonus(att,def){
+  if(att!==G.player)return 1.0;
+  const pSpd=att.spd+(att.status&&att.status.stimTurns>0?3:0);
+  const aSpd=def.spd+(def.status&&def.status.chill>0?-2:0);
+  if(pSpd<=aSpd)return 1.0;
+  // +2% per SPD point advantage, up to +20%
+  const advantage=Math.min(10,pSpd-aSpd);
+  return 1.0+advantage*0.02;
+}
+
 function calcDmg(att,def,mv,ignDef,mgMult=1.0){
   if(!mv.dmg||mv.dmg[0]===0)return{dmg:0,crit:false};
   let base=rnd(mv.dmg[0],mv.dmg[1]);
   const atkVal=getAtk(att);
   let dmg;
-  if(ignDef)dmg=Math.max(1,Math.round(base*(atkVal/ATK_PIERCE_BASE)*mgMult));
+  const pierceThis=ignDef||(att===G.player&&G.player.allPierce);
+  if(pierceThis)dmg=Math.max(1,Math.round(base*(atkVal/ATK_PIERCE_BASE)*mgMult));
   else{const defVal=getDef(def);dmg=Math.max(1,Math.round(base*(atkVal/defVal)*mgMult));}
   const critChance=mv.fx==='highcrit'?clamp(getCrit(att)+30,0,CRIT_CAP):getCrit(att);
   const crit=Math.random()*100<critChance;
   if(crit)dmg=Math.round(dmg*(att.critMult||1.5));
-  // REWORKED: Executioner now also auto-crits on <25% HP attacks + +60% dmg
   if(att.execute&&def.hp/def.maxHp<0.25){dmg=Math.round(dmg*1.6);if(!crit)dmg=Math.round(dmg*(att.critMult||1.5));}
   if(G.traits.find(t=>t.id==='t_momentum')&&att===G.player)dmg=Math.round(dmg*(1+(G.momentumCount||0)*0.05));
-  if(G.deathmarkActive&&att===G.player){
-    // SYNERGY: Death Spiral — DoT doubled during deathmark handled in tickStatus
-    dmg=Math.round(dmg*1.2);
-  }
+  if(G.deathmarkActive&&att===G.player)dmg=Math.round(dmg*1.2);
   if(G.speedkillUpg&&att===G.player&&playerGoesFirst())dmg=Math.round(dmg*1.15);
+  // SPD bonus
+  const spdBonus=getSpdDmgBonus(att,def);
+  if(spdBonus>1.0)dmg=Math.round(dmg*spdBonus);
+  // Incoming damage multiplier (from prestige downside)
+  if(def===G.player&&G.player.incomingDmgMult&&G.player.incomingDmgMult>1)dmg=Math.round(dmg*G.player.incomingDmgMult);
   if(G.traits.find(t=>t.id==='t_tank')&&def===G.player)dmg=Math.round(dmg*0.90);
   if(crit&&G.traits.find(t=>t.id==='t_critburn')&&def!==G.player)def.pendingStatus.burn=Math.max(def.pendingStatus.burn||0,2);
-  // SYNERGY: Chain + Momentum — each momentum stack adds to chain damage
-  if(mv.fx==='chain'&&G.traits.find(t=>t.id==='t_momentum')&&att===G.player&&G.momentumCount>0){
-    const bonusFlatDmg=G.momentumCount*4;dmg+=bonusFlatDmg;
-  }
   return{dmg,crit};
 }
 
@@ -404,7 +487,8 @@ function expectedDmg(att,def,mv){
   if(!mv.dmg||mv.dmg[0]===0)return 0;
   if(mv.fx==='gamble')return Math.round((mv.dmg[0]+mv.dmg[1])/2*(getAtk(att)/getDef(def))*(mv.acc/100));
   const avg=(mv.dmg[0]+mv.dmg[1])/2;
-  const r=mv.fx==='pierce'?getAtk(att)/ATK_PIERCE_BASE:getAtk(att)/getDef(def);
+  const pierceThis=att===G.player&&G.player.allPierce;
+  const r=(mv.fx==='pierce'||pierceThis)?getAtk(att)/ATK_PIERCE_BASE:getAtk(att)/getDef(def);
   const cc=clamp(getCrit(att),5,CRIT_CAP)/100;
   const ed=Math.round(avg*r*(1-cc+cc*(att.critMult||1.5)));
   const hit=mv.acc/100;
@@ -450,37 +534,26 @@ function initGame(){
     items:{heal:2,ether:0,boost:0,shield:0,flash:0,clens:0},
     shop:rollShop(),
     traits:[],chainCount:0,momentumCount:0,
-    nextMoveAccBonus:0,
-    nextMoveEffectGuarantee:false,
+    nextMoveAccBonus:0,nextMoveEffectGuarantee:false,
     deathmarkActive:false,deathmarkTurns:0,
     blurSteelUpg:false,speedkillUpg:false,dotMasterUpg:false,chainBoosted:false,pierceDegrade:false,
     jackpotSynergy:false,
-    // ── NEW synergy flags ──
-    pyroClastUpg:false,       // Burn+Bleed cross-infect
-    stormProtocolUpg:false,   // multi-hit moves 20% stun per hit
-    cryoPredatorUpg:false,    // execute threshold 40% on chilled enemies
-    drainMasteryUpg:false,    // drain+vamp stacks for 75% lifesteal
-    overwatchReflexUpg:false, // counter-strikes 25% stun
-    chainMomentumUpg:false,   // chain uses/resets momentum, each stack boosts chain
-    sniperProtocolUpg:false,  // Sniper Shot crits pierce DEF
-    deathSpiralUpg:false,     // DoT double during Deathmark
-    regenOverdriveUpg:false,  // Regen heals 14% while shielded
-    omniSyncUpg:false,        // every 3rd hit triggers auto-counter 20%
-    omniHitCount:0,
-    // existing rework flags
+    pyroClastUpg:false,stormProtocolUpg:false,cryoPredatorUpg:false,drainMasteryUpg:false,
+    overwatchReflexUpg:false,chainMomentumUpg:false,sniperProtocolUpg:false,deathSpiralUpg:false,
+    regenOverdriveUpg:false,omniSyncUpg:false,omniHitCount:0,
+    showPrestige:false,prestigeShop:null,prestigeShopUsed:false,
     player:{
       name:'Unit Alpha',maxHp:130,hp:130,
       bAtk:10,bDef:10,spd:10,
-      atkBuf:0,defBuf:0,defMult:1,
-      atkBufTurns:0,defBufTurns:0,
-      defDebuf:0,defDebufTurns:0,
-      critBonus:0,evadeBonus:0,critMult:1.5,
-      vamp:false,vampBonus:0.15,
+      atkBuf:0,defBuf:0,defMult:1,atkBufTurns:0,defBufTurns:0,
+      defDebuf:0,defDebufTurns:0,critBonus:0,evadeBonus:0,critMult:1.5,
+      vamp:false,vampBonus:0.15,allPierce:false,incomingDmgMult:1.0,
       reflect20:false,reflect10:false,berserk:false,
       phoenix:false,phoenixUsed:false,execute:false,counter:false,
       burnImmune:false,stunImmune:false,poisonImmune:false,lastStand:false,
       overload:false,overloadStacks:0,
       overdriveCnt:0,overwatchReady:false,
+      gamblerCounterReady:false,
       moves:['quick','heavy','barrage','stun'].map(id=>getMoveById(id)),
       status:{burn:0,stun:0,regen:0,reflect:0,stimTurns:0,chill:0,poison:0,bleed:0,shieldTurns:0,tauntTurns:0,wraithTurns:0},
       pendingStatus:{burn:0,poison:0,bleed:0,regen:0,chill:0},
@@ -503,9 +576,6 @@ function getMoveById(id){const m=BASE_PMOVES.find(x=>x.id===id);return m?{...m,p
 function renderAll(){
   renderFighter('player');renderFighter('ai');
   renderMoves();renderItems();renderStats();
-  document.getElementById('r-wave').textContent=G.wave;
-  document.getElementById('r-turn').textContent=G.turn;
-  document.getElementById('r-level').textContent=G.level;
   document.getElementById('r-exp').textContent=G.exp+'/'+G.expNext;
   document.getElementById('score-top').textContent=G.score.toLocaleString();
   document.getElementById('gold-top').textContent=G.gold;
@@ -516,9 +586,10 @@ function renderAll(){
   document.getElementById('arena-wave').textContent='Wave '+G.wave;
   const diffNames=['Novice','Easy','Normal','Hard','Expert','Elite','Master','Legendary','Apex','Infernal','Transcendent','Divine'];
   document.getElementById('diff-top').textContent=diffNames[clamp(G.wave-1,0,diffNames.length-1)];
-  document.getElementById('turn-line').textContent=G.phase==='player'?'Turn '+G.turn+' — your move':G.phase==='ai'?'Turn '+G.turn+" — opponent's move":'Turn '+G.turn+' — battle over';
+  document.getElementById('turn-line').textContent=G.phase==='player'?'Turn '+G.turn+' — your move':G.phase==='ai'?'Turn '+G.turn+" — opp's move":'Turn '+G.turn+' — over';
   updateProbTable();updateRadar();
   renderPendingEffects();
+  if(G.showPrestige)renderShop(true);
 }
 
 function renderPendingEffects(){
@@ -558,21 +629,22 @@ function renderFighter(who){
     if(who==='player'&&c.status.shieldTurns>0)parts.push('SHIELD '+c.status.shieldTurns+'t');
     if(who==='player'&&c.status.wraithTurns>0)parts.push('WRAITH '+c.status.wraithTurns+'t');
   }
-  if(who==='player'&&c.overload&&c.overloadStacks>0)parts.push('OVL+'+c.overloadStacks+'(atk+crit)');
-  if(who==='player'&&G.nextMoveAccBonus>0)parts.push('LENS+'+G.nextMoveAccBonus+'%');
-  if(who==='player'&&G.nextMoveEffectGuarantee)parts.push('LENS-EFFECT');
+  if(who==='player'&&c.overload&&c.overloadStacks>0)parts.push('OVL+'+c.overloadStacks);
+  if(who==='player'&&G.nextMoveAccBonus>0)parts.push('LENS+ACC');
+  if(who==='player'&&G.nextMoveEffectGuarantee)parts.push('LENS-EFF');
   if(who==='player'&&G.deathmarkActive)parts.push('MARK '+G.deathmarkTurns+'t');
   if(who==='player'&&c.overwatchReady)parts.push('OVERWATCH');
+  if(who==='player'&&c.gamblerCounterReady)parts.push('GAMBLE-CTR');
+  if(who==='player'&&c.allPierce)parts.push('VOID CORE');
   if(who==='ai'&&c.cycle>0)parts.push('MK'+(c.cycle+1));
-  if(parts.length){badge.textContent=parts.join(' | ');badge.style.display='inline';}
-  else badge.style.display='none';
+  if(parts.length){badge.textContent=parts.join(' | ');badge.classList.add('show');}
+  else badge.classList.remove('show');
 }
 
 function renderMoves(){
   const grid=document.getElementById('moves-grid');grid.innerHTML='';
   G.player.moves.forEach(mv=>{
     const ppZero=mv.pp<=0&&!(G.player.lastStand&&G.player.hp/G.player.maxHp<0.2);
-    // REWORKED: Berserker Protocol — 0 PP cost below 30% HP
     const berserkFree=G.player.berserk&&G.player.hp/G.player.maxHp<0.3;
     const wrap=document.createElement('div');wrap.className='tooltip-wrap';
     const btn=document.createElement('button');btn.className='mbtn';
@@ -594,7 +666,7 @@ function renderItems(){
     {key:'boost',label:'Stim',tip:'Boosts ATK by 40% for 3 turns.'},
     {key:'shield',label:'Shield Cell',tip:'Doubles DEF for 2 turns.'},
     {key:'flash',label:'Flash Grenade',tip:'Guarantees opponent stunned next turn.'},
-    {key:'clens',label:'Crit Lens',tip:'+20% ACC AND guarantees next status effect on your next move.'},
+    {key:'clens',label:'Crit Lens',tip:'+20% ACC AND guarantees next status effect.'},
   ];
   ITEM_DEFS.forEach(({key,label,tip})=>{
     const n=G.items[key]||0;
@@ -644,7 +716,7 @@ function updateEnemyMovesPanel(){
 function updateAIStrategyBox(){
   const el=document.getElementById('ai-strategy-box');if(!el)return;
   const e=G.ai;
-  el.textContent='['+e.name+(e.cycle>0?' MK'+(e.cycle+1):'')+']'+'\nTheme: '+e.theme+'\n\n'+(e.aiDesc||'Unknown.'+(e.evade>0?'\nEvade: '+e.evade+'%':''));
+  el.textContent='['+e.name+(e.cycle>0?' MK'+(e.cycle+1):'')+']'+'\nTheme: '+e.theme+'\n\n'+(e.aiDesc||'');
 }
 
 function renderTraits(){
@@ -677,44 +749,46 @@ function setMovesEnabled(on){
     const ppZero=mv&&mv.pp<=0&&!(G.player.lastStand&&G.player.hp/G.player.maxHp<0.2)&&!berserkFree;
     b.disabled=!mv||ppZero||G.phase!=='player';
   });
-  renderItems();renderShop();
+  renderItems();if(!G.showPrestige)renderShop();
 }
 
 function showPop(elId,amt,heal){
   const el=document.getElementById(elId);if(!el)return;
   const r=el.getBoundingClientRect();
   const d=document.createElement('div');d.className='dpop';d.textContent=heal?'+'+amt:'-'+amt;
-  d.style.color=heal?'#000':'#555';
+  d.style.color=heal?'#1a6b3a':'#c0392b';
   d.style.left=(r.left+r.width/2-14+scrollX)+'px';d.style.top=(r.top-6+scrollY)+'px';
   document.body.appendChild(d);setTimeout(()=>d.remove(),1150);
 }
 
-// ── GAMBLER'S EDGE ──────────────────────────────────────────────────────────
+// ── GAMBLER'S EDGE — reworked with COUNTER outcome and BUST penalty ──────────
 async function execGamble(attKey,defKey,mgMult=1.0){
   const att=G[attKey],def=G[defKey];
   const synergy=G.jackpotSynergy;
   const lensForce=G.nextMoveEffectGuarantee;
-  // SYNERGY: Lady Luck trait — +15% jackpot chance
   const luckyBonus=G.traits.find(t=>t.id==='t_lucky')?0.15:0;
   if(lensForce)G.nextMoveEffectGuarantee=false;
 
   const roll=lensForce?0:Math.random();
   let outcome;
+  // JACKPOT 20%, DRAIN 25%, DOUBLE 23%, COUNTER 12%, SHIELD 10%, BUST 10%
   if(roll<0.20+luckyBonus)outcome='JACKPOT';
   else if(roll<0.45+luckyBonus)outcome='DRAIN';
   else if(roll<0.68+luckyBonus)outcome='DOUBLE';
-  else if(roll<0.85+luckyBonus)outcome='SHIELD';
+  else if(roll<0.80+luckyBonus)outcome='COUNTER';
+  else if(roll<0.90+luckyBonus)outcome='SHIELD';
   else outcome='BUST';
 
-  const mv={dmg:[Math.round(20*(1+(getAtk(att)/getDef(def)))),Math.round(40*(1+(getAtk(att)/getDef(def))))],acc:90,fx:null};
+  const atkRatio=getAtk(att)/getDef(def);
+  const mv={dmg:[Math.round(20*(1+atkRatio)),Math.round(40*(1+atkRatio))],acc:90,fx:null};
 
   if(outcome==='JACKPOT'){
     const mult=synergy?3.0:2.0;
     const base=rnd(mv.dmg[0],mv.dmg[1]);
     const dmg=Math.max(1,Math.round(base*mult*mgMult));
     def.hp-=dmg;checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
-    setMsg((lensForce?'LENS → ':'')+(luckyBonus?' ★LUCKY ':' ')+'JACKPOT! Massive crit hit! '+dmg+' damage!');
-    addLog('> Gamble: JACKPOT'+(lensForce?' (LENS)':'')+(luckyBonus?' [LUCKY]':'')+(synergy?' [SYNERGY x3]':'')+' → '+dmg+'dmg','crit');
+    setMsg((lensForce?'LENS → ':'')+(luckyBonus?' ★LUCKY ':' ')+'JACKPOT! '+(synergy?'x3 ':'x2 ')+dmg+' damage!');
+    addLog('> Gamble: JACKPOT'+(lensForce?' (LENS)':'')+(synergy?' [SYNERGY x3]':'')+' → '+dmg+'dmg','crit');
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;
     await delay(900);return;
   }
@@ -744,6 +818,19 @@ async function execGamble(attKey,defKey,mgMult=1.0){
     gainExpScore(total,attKey);if(attKey==='player')G.momentumCount++;
     return;
   }
+  if(outcome==='COUNTER'){
+    // NEW: sets up a 60% reflect counter for next incoming hit (synergy: 1 turn + 50% damage added)
+    const reflectPct=synergy?0.8:0.6;
+    att.gamblerCounterPct=reflectPct;att.gamblerCounterReady=true;
+    const base=rnd(Math.round(mv.dmg[0]*0.4),Math.round(mv.dmg[1]*0.4));
+    const dmg=Math.max(1,Math.round(base*mgMult));
+    def.hp-=dmg;checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
+    const pct=Math.round(reflectPct*100);
+    setMsg('COUNTER SET! '+pct+'% reflect on next hit + '+dmg+' damage!');
+    addLog('> Gamble: COUNTER'+(synergy?' [SYNERGY '+pct+'%]':'')+' → CTR ready + '+dmg+'dmg','sys');
+    renderFighter(defKey);renderFighter(attKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;
+    await delay(900);return;
+  }
   if(outcome==='SHIELD'){
     const shieldTurns=synergy?3:2;
     att.defMult=2;att.status.shieldTurns=shieldTurns;
@@ -755,30 +842,66 @@ async function execGamble(attKey,defKey,mgMult=1.0){
     renderFighter(defKey);renderFighter(attKey);gainExpScore(dmg,attKey);if(attKey==='player')G.momentumCount++;
     await delay(900);return;
   }
-  // BUST
-  const bustMsg=synergy?'BUST — but Jackpot Synergy mitigates: next Gamble is free PP!':'BUST — no effect!';
+  // BUST — miss AND lose 5% HP (risk/reward penalty)
+  const bustPenalty=Math.round(att.hp*0.05);
+  att.hp=Math.max(1,att.hp-bustPenalty);
+  showPop(attKey+'-fill',bustPenalty,false);
+  const bustMsg=synergy?'BUST — Synergy recovers 1 PP!':'BUST — missed AND lost '+bustPenalty+' HP (5% risk)!';
   if(synergy){const mv2=G.player.moves.find(m=>m.id==='gamble');if(mv2)mv2.pp=Math.min(mv2.pp+1,mv2.maxPp);}
-  setMsg(bustMsg);addLog('> Gamble: BUST'+(synergy?' [SYNERGY: +1 PP recovered]':''),'miss');G.momentumCount=0;
+  setMsg(bustMsg);addLog('> Gamble: BUST'+(synergy?' [SYNERGY: +1 PP]':'')+' (-'+bustPenalty+' HP self)','miss');
+  G.momentumCount=0;renderFighter(attKey);
   await delay(900);
 }
 
-// ── APPLY OMNI-SYNC COUNTER (every 3rd hit) ─────────────────────────────────
 async function maybeOmniSync(defKey){
   if(!G.omniSyncUpg)return;
   G.omniHitCount++;
   if(G.omniHitCount%3===0){
-    const counterDmg=Math.round(getAtk(G.player)*0.20*3); // ~20% of a base hit
+    const counterDmg=Math.round(getAtk(G.player)*0.20*3);
     G.ai.hp=Math.max(0,G.ai.hp-counterDmg);
     addLog('> OMNI SYNC counter: '+counterDmg+' auto-dmg!','crit');
     showPop('ai-fill',counterDmg,false);renderFighter('ai');
   }
 }
 
-// ── EXECUTE MOVE ──────────────────────────────────────────────────────────────
+// ── NULL BLADE — steal a buff from enemy ─────────────────────────────────────
+async function execNullBlade(att,def,attKey,defKey,mgMult){
+  const{dmg,crit}=calcDmg(att,def,{...BASE_PMOVES.find(m=>m.id==='nullblade'),dmg:[Math.round(12*TIER_DMG_SCALE[0]),Math.round(18*TIER_DMG_SCALE[0])]},false,mgMult);
+  let stolenBuff='';
+  let bonusDmg=0;
+  // Check what buffs the enemy has, steal the best one
+  if(def.defMult>1){
+    def.defMult=1;def.status.shieldTurns=0;
+    att.defMult=2;att.status.shieldTurns=1; // give player a 1-turn version
+    stolenBuff='SHIELD (Wall)';
+  } else if(def.atkBuf>0){
+    const stolen=Math.min(2,def.atkBuf);
+    def.atkBuf=Math.max(0,def.atkBuf-stolen);if(def.atkBufTurns>0&&def.atkBuf===0)def.atkBufTurns=0;
+    att.atkBuf+=stolen;att.atkBufTurns=2;
+    stolenBuff='ATK+'+stolen;
+  } else if(def.defBuf>0){
+    const stolen=Math.min(2,def.defBuf);
+    def.defBuf=Math.max(0,def.defBuf-stolen);if(def.defBufTurns>0&&def.defBuf===0)def.defBufTurns=0;
+    att.defBuf+=stolen;att.defBufTurns=2;
+    stolenBuff='DEF+'+stolen;
+  } else {
+    // No buff to steal — deal +25% dmg instead
+    bonusDmg=Math.round(dmg*0.25);
+    stolenBuff='no buff → +25% dmg';
+  }
+  const totalDmg=dmg+bonusDmg;
+  def.hp-=totalDmg;
+  checkPhoenix(def);showPop(defKey+'-fill',totalDmg,false);
+  setMsg(att.name+': Null Blade! '+totalDmg+'dmg. Stole: '+stolenBuff+(crit?' Crit!':''));
+  addLog('> '+att.name+': Null Blade -> '+totalDmg+'dmg STOLE '+stolenBuff+(crit?' CRIT':''),crit?'crit':'hit');
+  renderFighter(defKey);renderFighter(attKey);gainExpScore(totalDmg,attKey);
+  if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}
+  await delay(900);
+}
+
 async function execMove(attKey,defKey,moveName,mgMult=1.0){
   const att=G[attKey],def=G[defKey];
   const mv=att.moves.find(m=>m.name===moveName);if(!mv)return;
-  // REWORKED: Berserker Protocol — also 0 PP cost below 30% HP
   const berserkFree=attKey==='player'&&G.player.berserk&&G.player.hp/G.player.maxHp<0.3;
   const lastStandActive=attKey==='player'&&G.player.lastStand&&G.player.hp/G.player.maxHp<0.2;
   if(mv.pp>0&&!lastStandActive&&!berserkFree)mv.pp--;
@@ -786,12 +909,27 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   let effectiveAcc=mv.acc;
   if(attKey==='player'&&G.nextMoveAccBonus>0){
     effectiveAcc=Math.min(100,mv.acc+G.nextMoveAccBonus);
-    G.nextMoveAccBonus=0;
-    renderFighter('player');
+    G.nextMoveAccBonus=0;renderFighter('player');
   }
 
-  // Reflect check
-  if(def.status&&def.status.reflect>0&&mv.dmg&&mv.dmg[0]>0){
+  // Stun check — consumes stun immediately, doesn't carry over
+  if(att.status&&att.status.stun>0){
+    att.status.stun=0;setMsg(att.name+' is stunned and cannot move!');
+    addLog('> '+att.name+': STUNNED — skipped','debuff');await delay(800);return;
+  }
+
+  // Non-damage moves bypass evade entirely
+  const isDmgMove=mv.dmg&&mv.dmg[0]>0;
+
+  if(mgMult===0){
+    setMsg(att.name+' used '+moveName+' — FAILED!');
+    addLog('> '+att.name+': '+moveName+' -> FAILED (minigame)','miss');
+    if(attKey==='player'){G.momentumCount=0;G.nextMoveEffectGuarantee=false;}
+    await delay(700);return;
+  }
+
+  // Reflect check (only on damage moves, consumed on use)
+  if(isDmgMove&&def.status&&def.status.reflect>0){
     def.status.reflect=0;setMsg(att.name+' used '+moveName+' — REFLECTED!');
     addLog('> '+att.name+': '+moveName+' -> REFLECTED','debuff');
     const{dmg}=calcDmg(att,att,mv,false,mgMult||1.0);
@@ -799,10 +937,43 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     await delay(900);return;
   }
 
-  // Stun check
-  if(att.status&&att.status.stun>0){
-    att.status.stun=0;setMsg(att.name+' is stunned and cannot move!');
-    addLog('> '+att.name+': STUNNED — skipped','debuff');await delay(800);return;
+  // Gambler Counter check (only on damage moves)
+  if(attKey==='ai'&&isDmgMove&&G.player.gamblerCounterReady){
+    const reflectPct=G.player.gamblerCounterPct||0.6;
+    G.player.gamblerCounterReady=false;G.player.gamblerCounterPct=0;
+    // still take full damage, but counter fires
+    const{dmg:incomingDmg}=calcDmg(att,def,mv,false,mgMult||1.0);
+    def.hp=Math.max(0,def.hp-incomingDmg);showPop(defKey+'-fill',incomingDmg,false);
+    const counterDmg=Math.round(incomingDmg*reflectPct);
+    att.hp=Math.max(0,att.hp-counterDmg);showPop(attKey+'-fill',counterDmg,false);
+    setMsg(def.name+' GAMBLE COUNTER! Took '+incomingDmg+' → reflected '+counterDmg+'!');
+    addLog('> GAMBLE COUNTER: took '+incomingDmg+' reflected '+counterDmg,'crit');
+    renderFighter('player');renderFighter('ai');gainExpScore(counterDmg,'player');
+    await delay(900);return;
+  }
+
+  // Evade check — only for damage moves
+  if(isDmgMove){
+    if(attKey==='player'){
+      const aiEv=getAIEvade(G.ai);
+      if(aiEv>0&&Math.random()*100<aiEv){setMsg(G.ai.name+' evaded '+moveName+'!');addLog('> '+G.ai.name+' EVADED '+moveName,'miss');G.momentumCount=0;G.nextMoveEffectGuarantee=false;await delay(700);return;}
+    }else{
+      const pEv=getEvade(G.player);
+      if(pEv>0&&Math.random()*100<pEv){setMsg(G.player.name+' evaded '+G.ai.name+"'s "+moveName+'!');addLog('> '+G.player.name+' EVADED '+moveName,'miss');await delay(700);return;}
+    }
+    // Accuracy check
+    if(Math.random()*100>effectiveAcc){
+      setMsg(att.name+' used '+moveName+' — missed!');
+      addLog('> '+att.name+': '+moveName+' -> MISS','miss');
+      if(attKey==='player')G.momentumCount=0;
+      await delay(700);return;
+    }
+  } else {
+    // Non-damage moves: skip accuracy check entirely
+    if(Math.random()*100>effectiveAcc&&mv.acc<100){
+      setMsg(att.name+' used '+moveName+' — missed!');addLog('> '+att.name+': '+moveName+' -> MISS','miss');
+      if(attKey==='player')G.momentumCount=0;await delay(700);return;
+    }
   }
 
   // Taunt override
@@ -812,35 +983,20 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     G.ai.status.tauntTurns=Math.max(0,G.ai.status.tauntTurns-1);
   }
 
-  if(mgMult===0){
-    setMsg(att.name+' used '+moveName+' — FAILED!');
-    addLog('> '+att.name+': '+moveName+' -> FAILED (minigame)','miss');
-    if(attKey==='player'){G.momentumCount=0;G.nextMoveEffectGuarantee=false;}
-    await delay(700);return;
-  }
-
-  // Evade check
-  if(attKey==='player'){
-    const aiEv=getAIEvade(G.ai);
-    if(aiEv>0&&Math.random()*100<aiEv){setMsg(G.ai.name+' evaded '+moveName+'!');addLog('> '+G.ai.name+' EVADED '+moveName,'miss');G.momentumCount=0;G.nextMoveEffectGuarantee=false;await delay(700);return;}
-  }else{
-    const pEv=getEvade(G.player);
-    if(pEv>0&&Math.random()*100<pEv){setMsg(G.player.name+' evaded '+G.ai.name+"'s "+moveName+'!');addLog('> '+G.player.name+' EVADED '+moveName,'miss');await delay(700);return;}
-  }
-
   const consumeLens=()=>{const v=G.nextMoveEffectGuarantee;if(attKey==='player')G.nextMoveEffectGuarantee=false;return v;};
 
-  // GAMBLER'S EDGE
-  if(mv.fx==='gamble'){
-    await execGamble(attKey,defKey,mgMult);return;
-  }
+  // GAMBLE
+  if(mv.fx==='gamble'){await execGamble(attKey,defKey,mgMult);return;}
+
+  // NULL BLADE
+  if(mv.fx==='nullblade'){await execNullBlade(att,def,attKey,defKey,mgMult);return;}
 
   if(mv.fx==='fortify_atk'){att.atkBuf=Math.min(8,att.atkBuf+2);att.atkBufTurns=3;setMsg(att.name+' used Power Up! ATK+2 3t!');addLog('> '+att.name+': Power Up -> ATK+2 3t','sys');renderFighter(attKey);await delay(750);return;}
   if(mv.fx==='fortify_def'){att.defBuf=Math.min(8,att.defBuf+2);att.defBufTurns=3;setMsg(att.name+' used Brace! DEF+2 3t!');addLog('> '+att.name+': Brace -> DEF+2 3t','sys');renderFighter(attKey);await delay(750);return;}
   if(mv.fx==='regen'){att.pendingStatus.regen=3;setMsg(att.name+': Regenerate — Regen queued 3 rounds!');addLog('> '+att.name+': Regen queued 3t','sys');await delay(750);return;}
   if(mv.fx==='reflect'){att.status.reflect=1;setMsg(att.name+': Nullify active — next attack reflected!');addLog('> '+att.name+': REFLECT ready','sys');await delay(750);return;}
-  if(mv.fx==='ironwall'){att.defMult=2;att.status.shieldTurns=2;setMsg(att.name+': Iron Wall! DEF doubled 2t!');addLog('> '+att.name+': DEF x2 for 2t','sys');renderFighter(attKey);await delay(750);return;}
-  if(mv.fx==='taunt'){def.status.tauntTurns=2;setMsg(att.name+' taunts '+def.name+'!');addLog('> '+att.name+': TAUNT -> '+def.name+' forced big moves 2t','debuff');renderFighter(defKey);await delay(750);return;}
+  if(mv.fx==='ironwall'){att.defMult=2;att.status.shieldTurns=(G.traits.find(t=>t.id==='t_ferrousframe')?3:2);setMsg(att.name+': Iron Wall! DEF doubled '+(G.traits.find(t=>t.id==='t_ferrousframe')?3:2)+'t!');addLog('> '+att.name+': DEF x2','sys');renderFighter(attKey);await delay(750);return;}
+  if(mv.fx==='taunt'){def.status.tauntTurns=2;setMsg(att.name+' taunts '+def.name+'!');addLog('> '+att.name+': TAUNT -> forced big moves 2t','debuff');renderFighter(defKey);await delay(750);return;}
   if(mv.fx==='sacrifice'){const cost=Math.round(att.hp*0.15);att.hp=Math.max(1,att.hp-cost);att.atkBuf=Math.min(8,att.atkBuf+4);att.atkBufTurns=3;setMsg(att.name+': Blood Price! -'+cost+'HP → ATK+4 3t!');addLog('> Blood Price: -'+cost+'HP → ATK+4 3t','sys');renderFighter(attKey);await delay(750);return;}
   if(mv.fx==='wraithform'){att.status.wraithTurns=2;setMsg(att.name+': Wraith Form! Evade+30% for 2 turns!');addLog('> '+att.name+': WRAITH FORM — Evade+30% 2t','sys');renderFighter(attKey);await delay(750);return;}
   if(mv.fx==='overwatch'){att.overwatchReady=true;setMsg(att.name+' enters Overwatch stance!');addLog('> '+att.name+': OVERWATCH — will counter next attack','sys');renderFighter(attKey);await delay(750);return;}
@@ -849,7 +1005,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     def.defDebuf=Math.min(5,(def.defDebuf||0)+1);def.defDebufTurns=2;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
-    setMsg(att.name+': Rend! '+dmg+'dmg + DEF-1 for 2t!'+(crit?' Crit!':''));
+    setMsg(att.name+': Rend! '+dmg+'dmg + DEF-1 2t!'+(crit?' Crit!':''));
     addLog('> '+att.name+': Rend -> '+dmg+'dmg DEF-1'+(crit?' CRIT':''),crit?'crit':'hit');
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
@@ -857,7 +1013,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     def.defDebuf=Math.min(5,(def.defDebuf||0)+2);def.defDebufTurns=3;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
-    setMsg(att.name+': Sunder! '+dmg+'dmg + DEF-2 for 3t!'+(crit?' Crit!':''));
+    setMsg(att.name+': Sunder! '+dmg+'dmg + DEF-2 3t!'+(crit?' Crit!':''));
     addLog('> '+att.name+': Sunder -> '+dmg+'dmg DEF-2'+(crit?' CRIT':''),crit?'crit':'hit');
     renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
@@ -878,7 +1034,6 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
       const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
       def.hp-=dmg;total+=dmg;
       if(att.vamp){const h=Math.round(dmg*(att.vampBonus||0.15));att.hp=Math.min(att.maxHp,att.hp+h);}
-      // SYNERGY: Storm Protocol — multi-hit moves have 20% stun per hit
       if(G.stormProtocolUpg&&attKey==='player'&&defKey==='ai'&&Math.random()<0.20&&def.status.stun===0){
         def.status.stun=1;addLog('  STORM stun on hit '+(i+1)+'!','debuff');
       }
@@ -886,20 +1041,19 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
       addLog('  hit '+(i+1)+': '+dmg+(crit?' (CRIT!)':''),crit?'crit':'hit');
       renderFighter(defKey);await delay(260);
     }
-    setMsg(moveName+' hit '+hits+'x! ('+total+' total)'+(G.stormProtocolUpg&&attKey==='player'?' [Storm]':''));
+    setMsg(moveName+' hit '+hits+'x! ('+total+' total)');
     gainExpScore(total,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}return;
   }
 
   if(mv.fx==='drain'||mv.fx==='leech'){
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    // SYNERGY: Drain Mastery — drain + vamp = 75% total lifesteal
     let healPct=0.5;
     if(G.drainMasteryUpg&&att.vamp)healPct=0.75;
     const heal=Math.round(dmg*healPct);att.hp=Math.min(att.maxHp,att.hp+heal);
     if(mv.fx==='leech'){const guarantee=consumeLens();if(guarantee||!(defKey==='player'&&G.player.poisonImmune))def.pendingStatus.poison=3;}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);showPop(attKey+'-fill',heal,true);
-    setMsg(att.name+': '+moveName+'. Drained '+dmg+'! +'+heal+'HP.'+(G.drainMasteryUpg&&att.vamp?' [DRAIN MASTERY]':'')+(crit?' Crit!':''));
-    addLog('> '+att.name+': '+moveName+' -> '+dmg+' drain (+'+heal+'HP)'+(G.drainMasteryUpg&&att.vamp?' [DRAIN MASTERY]':'')+(crit?' CRIT':''),crit?'crit':'hit');
+    setMsg(att.name+': '+moveName+'. Drained '+dmg+'! +'+heal+'HP.'+(crit?' Crit!':''));
+    addLog('> '+att.name+': '+moveName+' -> '+dmg+' drain (+'+heal+'HP)'+(crit?' CRIT':''),crit?'crit':'hit');
     renderFighter(defKey);renderFighter(attKey);gainExpScore(dmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
 
@@ -907,7 +1061,6 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     if(guarantee||!(defKey==='player'&&G.player.burnImmune))def.pendingStatus.burn=3;
-    // SYNERGY: Pyroclast — if target already has bleed, burn cross-infects: refresh bleed
     if(G.pyroClastUpg&&attKey==='player'&&def.status.bleed>0){def.status.bleed=Math.max(def.status.bleed,2);addLog('> PYROCLAST: Burn refreshes Bleed!','debuff');}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. '+(def.pendingStatus.burn?def.name+' BURNS!':'')+(crit?' Crit!':''));
@@ -929,7 +1082,6 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     if(guarantee||!(defKey==='player'&&G.player.poisonImmune))def.pendingStatus.poison=4;
-    // SYNERGY: Pyroclast — if target already has burn, poison cross-infects: refresh burn
     if(G.pyroClastUpg&&attKey==='player'&&def.status.burn>0){def.status.burn=Math.max(def.status.burn,2);addLog('> PYROCLAST: Poison refreshes Burn!','debuff');}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. '+(def.pendingStatus.poison?def.name+' POISONED!':'Resisted!')+(crit?' Crit!':''));
@@ -938,10 +1090,8 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
 
   if(mv.fx==='bleed'){
-    const guarantee=consumeLens();
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     def.pendingStatus.bleed=3;
-    // SYNERGY: Pyroclast — if target already has burn, bleed cross-infects: refresh burn
     if(G.pyroClastUpg&&attKey==='player'&&def.status.burn>0){def.status.burn=Math.max(def.status.burn,2);addLog('> PYROCLAST: Bleed refreshes Burn!','debuff');}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+'. BLEED!'+(crit?' Crit!':''));
@@ -963,29 +1113,18 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   if(mv.fx==='pierce'){
     const{dmg,crit}=calcDmg(att,def,mv,true,mgMult||1.0);def.hp-=dmg;
     if(G.pierceDegrade&&defKey==='ai')G.ai.bDef=Math.max(1,Math.round(G.ai.bDef*0.88));
-    // SYNERGY: Void Mastery — pierce on DEF-debuffed enemy adds +25% and Bleed
-    let voidBonus=0;
-    if(G.voidMasteryUpg&&attKey==='player'&&def.defDebuf>0){
-      voidBonus=Math.round(dmg*0.25);def.hp-=voidBonus;
-      def.pendingStatus.bleed=Math.max(def.pendingStatus.bleed||0,2);
-      addLog('> VOID MASTERY: +'+voidBonus+' bonus + BLEED!','crit');
-    }
-    // SYNERGY: Sniper Protocol — Sniper Shot crits bypass DEF (handled via highcrit branch below,
-    // but pierce flag here for regular pierce moves)
-    checkPhoenix(def);showPop(defKey+'-fill',dmg+(voidBonus||0),false);
-    setMsg(att.name+': '+moveName+'. Bypassed armor! '+(dmg+voidBonus)+'dmg!'+(crit?' Crit!':''));
-    addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg (PIERCE)'+(voidBonus?' +VOID MASTERY':'')+(crit?' CRIT':''),crit?'crit':'hit');
+    checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
+    setMsg(att.name+': '+moveName+'. Bypassed armor! '+dmg+'dmg!'+(crit?' Crit!':''));
+    addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg (PIERCE)'+(crit?' CRIT':''),crit?'crit':'hit');
     if(defKey==='player'&&G.player.reflect20)att.hp-=Math.round(dmg*0.2);
     if(defKey==='player'&&G.player.reflect10)att.hp-=Math.round(dmg*0.1);
-    renderFighter(defKey);gainExpScore(dmg+voidBonus,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
+    renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
 
   if(mv.fx==='highcrit'){
-    // SYNERGY: Sniper Protocol — if this is Sniper Shot and it crits, re-calc as pierce
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
     let finalDmg=dmg;
     if(G.sniperProtocolUpg&&attKey==='player'&&crit&&mv.id==='snipe'){
-      // Re-calculate ignoring DEF for the crit portion
       const pierceDmg=Math.max(1,Math.round(rnd(mv.dmg[0],mv.dmg[1])*(getAtk(att)/ATK_PIERCE_BASE)*mgMult*(att.critMult||1.5)));
       finalDmg=Math.max(dmg,pierceDmg);
       addLog('> SNIPER PROTOCOL: crit pierces DEF! '+finalDmg+'dmg!','crit');
@@ -995,8 +1134,7 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     if(defKey==='player'&&G.player.reflect20)att.hp-=Math.round(finalDmg*0.2);
     if(defKey==='player'&&G.player.reflect10)att.hp-=Math.round(finalDmg*0.1);
     checkPhoenix(def);showPop(defKey+'-fill',finalDmg,false);
-    setMsg(att.name+': '+moveName+' — '+finalDmg+'dmg!'+(crit?' CRITICAL HIT!':'')+
-      (G.sniperProtocolUpg&&crit&&mv.id==='snipe'?' [SNIPER PIERCE]':''));
+    setMsg(att.name+': '+moveName+' — '+finalDmg+'dmg!'+(crit?' CRITICAL HIT!':''));
     addLog('> '+att.name+': '+moveName+' -> '+finalDmg+'dmg'+(crit?' CRIT':''),crit?'crit':'hit');
     renderFighter(defKey);gainExpScore(finalDmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
@@ -1005,17 +1143,19 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     G.chainCount=(G.chainCount||0)+1;
     const bonus=G.chainBoosted?8:4;
     const saved=att.bAtk;att.bAtk+=G.chainCount*bonus;
-    // SYNERGY: Chain Momentum — each momentum stack adds to chain bonus
     if(G.chainMomentumUpg&&att===G.player&&G.momentumCount>0){
       att.bAtk+=G.momentumCount*3;
-      addLog('> CHAIN MOMENTUM: +'+G.momentumCount*3+' ATK from '+G.momentumCount+' momentum!','sys');
+      addLog('> CHAIN MOMENTUM: +'+G.momentumCount*3+' ATK from momentum!','sys');
     }
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);att.bAtk=saved;
     def.hp-=dmg;if(att.vamp){const h=Math.round(dmg*(att.vampBonus||0.15));att.hp=Math.min(att.maxHp,att.hp+h);}
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': '+moveName+' — Chain x'+G.chainCount+'! '+dmg+'dmg!'+(crit?' Crit!':''));
     addLog('> '+att.name+': '+moveName+' -> '+dmg+'dmg [chain x'+G.chainCount+']'+(crit?' CRIT':''),crit?'crit':'hit');
-    renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
+    // Chain Momentum: reset to 1 instead of 0
+    if(G.chainMomentumUpg&&attKey==='player')G.momentumCount=1;
+    renderFighter(defKey);gainExpScore(dmg,attKey);if(attKey==='player'&&!G.chainMomentumUpg)G.momentumCount++;
+    if(attKey==='player')await maybeOmniSync(defKey);await delay(900);return;
   }
 
   if(mv.fx==='glacial'){
@@ -1034,17 +1174,16 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
     G.deathmarkActive=true;G.deathmarkTurns=2;
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
-    setMsg(att.name+': Deathmark! '+dmg+'dmg! +20% dmg for 2 turns!'+(G.deathSpiralUpg?' [DEATH SPIRAL: DoT 2x]':''));
-    addLog('> '+att.name+': Deathmark -> '+dmg+'dmg +MARK 2t'+(G.deathSpiralUpg?' [SPIRAL]':'')+(crit?' CRIT':''),crit?'crit':'hit');
+    setMsg(att.name+': Deathmark! '+dmg+'dmg! +20% dmg 2t!');
+    addLog('> '+att.name+': Deathmark -> '+dmg+'dmg +MARK 2t'+(crit?' CRIT':''),crit?'crit':'hit');
     renderFighter(defKey);renderFighter('player');gainExpScore(dmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
 
   if(mv.fx==='overloadhit'){
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);def.hp-=dmg;
-    // REWORKED: Overdrive now also stacks +2% crit per stack
     if(attKey==='player'&&att.overdriveCnt<5){
       att.overdriveCnt++;att.bAtk+=3;att.critBonus=(att.critBonus||0)+2;
-      addLog('> Overdrive: ATK permanently +3, Crit permanently +2% (stack '+att.overdriveCnt+')','sys');
+      addLog('> Overdrive: ATK+3, Crit+2% (stack '+att.overdriveCnt+')','sys');
     }
     checkPhoenix(def);showPop(defKey+'-fill',dmg,false);
     setMsg(att.name+': Overdrive! '+dmg+'dmg! ATK+CRIT stacking!');
@@ -1053,15 +1192,14 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   }
 
   if(mv.fx==='executeblow'){
-    // SYNERGY: Cryo Predator — execute threshold is 40% when enemy is Chilled
     const threshold=G.cryoPredatorUpg&&G.ai.status&&G.ai.status.chill>0?0.40:0.30;
     const bonus=def.hp/def.maxHp<threshold?1.5:1.0;
     const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
     const finalDmg=Math.round(dmg*bonus);
     def.hp-=finalDmg;
     checkPhoenix(def);showPop(defKey+'-fill',finalDmg,false);
-    setMsg(att.name+': Finishing Blow! '+finalDmg+'dmg!'+(bonus>1?' [EXECUTE'+(G.cryoPredatorUpg&&G.ai.status&&G.ai.status.chill>0?' CRYO-PREDATOR':'')+' +50%!]':'')+(crit?' Crit!':''));
-    addLog('> '+att.name+': '+moveName+' -> '+finalDmg+'dmg'+(bonus>1?' [EXECUTE'+(G.cryoPredatorUpg&&G.ai.status.chill>0?'+CRYO':'')+']':'')+(crit?' CRIT':''),bonus>1?'crit':crit?'crit':'hit');
+    setMsg(att.name+': Finishing Blow! '+finalDmg+'dmg!'+(bonus>1?' [EXECUTE +50%!]':'')+(crit?' Crit!':''));
+    addLog('> '+att.name+': '+moveName+' -> '+finalDmg+'dmg'+(bonus>1?' [EXECUTE]':'')+(crit?' CRIT':''),bonus>1?'crit':crit?'crit':'hit');
     renderFighter(defKey);gainExpScore(finalDmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
 
@@ -1086,15 +1224,6 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
     renderFighter(defKey);renderFighter(attKey);gainExpScore(dmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
   }
 
-  if(mv.fx==='thornstrike'){
-    const{dmg,crit}=calcDmg(att,def,mv,false,mgMult);
-    def.hp-=dmg;const thornDmg=Math.round(dmg*0.10);def.hp-=thornDmg;
-    checkPhoenix(def);showPop(defKey+'-fill',dmg+thornDmg,false);
-    setMsg(att.name+': '+moveName+'. Thorn! '+dmg+'+'+thornDmg+'dmg!'+(crit?' Crit!':''));
-    addLog('> '+att.name+': '+moveName+' -> '+dmg+' +thorn '+thornDmg+(crit?' CRIT':''),crit?'crit':'hit');
-    renderFighter(defKey);gainExpScore(dmg+thornDmg,attKey);if(attKey==='player'){G.momentumCount++;await maybeOmniSync(defKey);}await delay(900);return;
-  }
-
   // Default physical
   const{dmg,crit}=calcDmg(att,def,mv,false,mgMult||1.0);
   def.hp-=dmg;
@@ -1103,7 +1232,6 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   if(defKey==='player'&&G.player.reflect10)att.hp-=Math.round(dmg*0.1);
   if(defKey==='player'&&G.player.counter&&dmg>=20){
     att.hp-=8;addLog('> Counter-Strike: 8 dmg reflected','hit');
-    // SYNERGY: Overwatch Reflex — counter-strikes have 25% stun chance
     if(G.overwatchReflexUpg&&Math.random()<0.25&&att.status.stun===0){
       att.status.stun=1;addLog('> OVERWATCH REFLEX: Counter STUNNED enemy!','debuff');renderFighter('ai');
     }
@@ -1111,7 +1239,6 @@ async function execMove(attKey,defKey,moveName,mgMult=1.0){
   if(defKey==='player'&&G.player.overwatchReady){
     const counterDmg=Math.round(dmg*0.5);att.hp-=counterDmg;G.player.overwatchReady=false;
     addLog('> OVERWATCH counter: '+counterDmg+' dmg!','crit');renderFighter('ai');
-    // SYNERGY: Overwatch Reflex — overwatch counters also have 25% stun
     if(G.overwatchReflexUpg&&Math.random()<0.25&&att.status.stun===0){
       att.status.stun=1;addLog('> OVERWATCH REFLEX: Overwatch STUNNED enemy!','debuff');renderFighter('ai');
     }
@@ -1154,39 +1281,42 @@ function tickStatusEndOfRound(who){
     if(c.pendingStatus.chill>0){c.status.chill=Math.max(c.status.chill||0,c.pendingStatus.chill);c.pendingStatus.chill=0;if(c.spd>3)c.spd=Math.max(3,c.spd-2);addLog('> '+c.name+': CHILL! SPD-2','debuff');}
   }
   if(!c.status)return;
-  // Death Spiral: DoT does 2x during Deathmark
   const deathSpiralMult=G.deathSpiralUpg&&G.deathmarkActive&&c===G.ai?2.0:1.0;
   const dotMult=(G.dotMasterUpg?1.3:1.0)*deathSpiralMult;
   if(c.status.burn>0){
     const d=Math.round(c.maxHp*0.055*dotMult);c.hp=Math.max(0,c.hp-d);c.status.burn--;
-    addLog('> '+c.name+': BURN — '+d+' dmg ('+c.status.burn+'t left)'+(deathSpiralMult>1?' [SPIRAL]':''),'debuff');
-    // SYNERGY: Pyroclast — burn ticking refreshes bleed if both active
-    if(G.pyroClastUpg&&c===G.ai&&c.status.bleed>0){c.status.bleed=Math.max(c.status.bleed,1);addLog('> PYROCLAST: Burn tick keeps Bleed alive','debuff');}
+    addLog('> '+c.name+': BURN — '+d+' dmg ('+c.status.burn+'t left)','debuff');
+    if(G.pyroClastUpg&&c===G.ai&&c.status.bleed>0){c.status.bleed=Math.max(c.status.bleed,1);}
     renderFighter(who);
   }
-  if(c.status.poison>0){const d=Math.round(c.maxHp*0.04*dotMult);c.hp=Math.max(0,c.hp-d);c.status.poison--;addLog('> '+c.name+': PSNT — '+d+' dmg ('+c.status.poison+'t left)'+(deathSpiralMult>1?' [SPIRAL]':''),'debuff');renderFighter(who);}
+  if(c.status.poison>0){const d=Math.round(c.maxHp*0.04*dotMult);c.hp=Math.max(0,c.hp-d);c.status.poison--;addLog('> '+c.name+': PSNT — '+d+' dmg ('+c.status.poison+'t left)','debuff');renderFighter(who);}
   if(c.status.bleed>0){
     const d=Math.round(c.maxHp*0.05*dotMult);c.hp=Math.max(0,c.hp-d);c.status.bleed--;
-    addLog('> '+c.name+': BLEED — '+d+' dmg ('+c.status.bleed+'t left)'+(deathSpiralMult>1?' [SPIRAL]':''),'debuff');
-    // SYNERGY: Pyroclast — bleed ticking refreshes burn if both active
-    if(G.pyroClastUpg&&c===G.ai&&c.status.burn>0){c.status.burn=Math.max(c.status.burn,1);addLog('> PYROCLAST: Bleed tick keeps Burn alive','debuff');}
+    addLog('> '+c.name+': BLEED — '+d+' dmg ('+c.status.bleed+'t left)','debuff');
+    if(G.traits.find(t=>t.id==='t_bleedlust')&&c===G.ai){G.player.hp=Math.min(G.player.maxHp,G.player.hp+3);addLog('> BLEED LUST: +3 HP','hit');}
+    if(G.pyroClastUpg&&c===G.ai&&c.status.burn>0){c.status.burn=Math.max(c.status.burn,1);}
     renderFighter(who);
   }
   if(c.status.chill>0){c.status.chill--;if(c.status.chill===0){c.spd+=2;addLog('> '+c.name+': CHILL faded — SPD restored','debuff');}renderFighter(who);}
-  // SYNERGY: Regen Overdrive — heals 14% while Iron Wall active
+  const regenPct=G.regenOverdriveUpg&&c===G.player&&c.defMult>1?0.14:0.07;
   if(c.status.regen>0){
-    const regenPct=G.regenOverdriveUpg&&c===G.player&&c.defMult>1?0.14:0.07;
     const h=Math.round(c.maxHp*regenPct);c.hp=Math.min(c.maxHp,c.hp+h);c.status.regen--;
-    showPop(who+'-fill',h,true);
-    addLog('> '+c.name+': REGEN +'+h+'HP ('+c.status.regen+'t left)'+(G.regenOverdriveUpg&&c===G.player&&c.defMult>1?' [OVERDRIVE]':''),'hit');
+    showPop(who+'-fill',h,true);addLog('> '+c.name+': REGEN +'+h+'HP ('+c.status.regen+'t left)'+(G.regenOverdriveUpg&&c===G.player&&c.defMult>1?' [OVERDRIVE]':''),'hit');
     renderFighter(who);
   }
+  // Reflect clears at end of round if not triggered
+  if(c.status.reflect>0){c.status.reflect=0;addLog('> '+c.name+': Nullify expired','debuff');renderFighter(who);}
   if(c.status.wraithTurns>0){c.status.wraithTurns--;if(c.status.wraithTurns===0){addLog('> '+c.name+': Wraith Form faded','debuff');renderFighter(who);}}
   if(c.defDebuf>0&&c.defDebufTurns>0){c.defDebufTurns--;if(c.defDebufTurns===0){c.defDebuf=0;addLog('> '+c.name+': DEF debuff faded','debuff');renderFighter(who);}}
   if(c.atkBufTurns>0){c.atkBufTurns--;if(c.atkBufTurns===0){c.atkBuf=Math.max(0,c.atkBuf-2);addLog('> '+c.name+': ATK boost faded','debuff');}}
   if(c.defBufTurns>0){c.defBufTurns--;if(c.defBufTurns===0){c.defBuf=Math.max(0,c.defBuf-2);addLog('> '+c.name+': DEF boost faded','debuff');}}
   if(c.status.stimTurns>0)c.status.stimTurns--;
   if(c.status.shieldTurns>0){c.status.shieldTurns--;if(c.status.shieldTurns===0){c.defMult=1;addLog('> '+c.name+': Iron Wall faded','debuff');renderFighter(who);}}
+  // HP passive regen trait
+  if(who==='player'&&G.traits.find(t=>t.id==='t_hp_regen')){
+    const h=Math.round(c.maxHp*0.02);
+    if(c.hp<c.maxHp){c.hp=Math.min(c.maxHp,c.hp+h);addLog('> Passive Regen: +'+h+'HP','hit');}
+  }
 }
 
 function aiPick(){
@@ -1199,16 +1329,16 @@ function aiPick(){
   if(ap<0.55&&G.ai.atkBuf<4){const b=avail.find(m=>m.fx==='fortify_def');if(b&&Math.random()<0.35)return b.name;}
   if(ap>0.5&&G.ai.atkBuf<4){const pu=avail.find(m=>m.fx==='fortify_atk');if(pu&&Math.random()<0.25)return pu.name;}
   if(ap<0.55&&(theme==='Leech Vampire'||theme==='Regenerator')){const d=avail.find(m=>m.fx==='drain'||m.fx==='leech');if(d)return d.name;}
-  if(G.ai.status.reflect===0){const rf=avail.find(m=>m.fx==='reflect');if(rf&&Math.random()<0.2)return rf.name;}
+  if(G.ai.status.reflect===0){const rf=avail.find(m=>m.fx==='reflect');if(rf&&Math.random()<0.18)return rf.name;}
   if(theme==='Stunner'){const s=avail.find(m=>m.fx==='stun');if(s&&G.player.status.stun===0&&Math.random()<0.5)return s.name;}
   if(theme==='Pyromaniac'||theme==='Toxicologist'){const b=avail.find(m=>m.fx==='burn');if(b&&!G.player.status.burn&&!G.player.burnImmune&&Math.random()<0.55)return b.name;}
   const psn=avail.find(m=>m.fx==='poison');if(psn&&!G.player.status.poison&&!G.player.poisonImmune&&Math.random()<0.35)return psn.name;
   const bl=avail.find(m=>m.fx==='bleed');if(bl&&!G.player.status.bleed&&Math.random()<0.3)return bl.name;
   const ch=avail.find(m=>m.fx==='chill');if(ch&&G.player.spd>G.ai.spd&&Math.random()<0.35)return ch.name;
-  if(theme==='Armor Shredder'&&G.player.defDebuf<3){const rnd=avail.find(m=>m.fx==='rend'||m.fx==='sunder');if(rnd&&Math.random()<0.6)return rnd.name;}
+  if(theme==='Armor Shredder'&&G.player.defDebuf<3){const rnd2=avail.find(m=>m.fx==='rend'||m.fx==='sunder');if(rnd2&&Math.random()<0.6)return rnd2.name;}
   if(theme==='Glass Cannon'||theme==='Deathbringer'){const big=avail.filter(m=>m.dmg&&m.dmg[0]>0).sort((a,b)=>b.dmg[1]-a.dmg[1])[0];if(big&&Math.random()<0.75)return big.name;}
   if(pp<0.3){const big=avail.filter(m=>m.dmg&&m.dmg[0]>0).sort((a,b)=>b.dmg[1]-a.dmg[1])[0];if(big&&Math.random()<0.8)return big.name;}
-  const aggression=clamp(0.25+G.ai.cycle*0.10,0.25,0.65);
+  const aggression=clamp(0.25+G.ai.cycle*0.08,0.25,0.60);
   if(Math.random()<aggression){const dmgMoves=avail.filter(m=>m.dmg&&m.dmg[0]>0);if(dmgMoves.length)return dmgMoves.sort((a,b)=>b.dmg[1]-a.dmg[1])[0].name;}
   let r=Math.random()*avail.reduce((s,m)=>s+m.pp,0);
   for(const m of avail){r-=m.pp;if(r<=0)return m.name;}
@@ -1217,10 +1347,10 @@ function aiPick(){
 
 function autoScalePlayer(){
   const e=G.ai;
-  if(e.bAtk>G.player.bAtk){const gain=Math.max(1,Math.round((e.bAtk-G.player.bAtk)*0.15));G.player.bAtk+=gain;addLog('> Auto-scale: ATK +'+gain,'proj');}
-  if(e.bDef>G.player.bDef){const gain=Math.max(1,Math.round((e.bDef-G.player.bDef)*0.12));G.player.bDef+=gain;addLog('> Auto-scale: DEF +'+gain,'proj');}
-  if(e.spd>G.player.spd+3){G.player.spd+=1;addLog('> Auto-scale: SPD +1','proj');}
-  if(e.maxHp>G.player.maxHp*1.6){const gain=Math.round((e.maxHp-G.player.maxHp)*0.08);G.player.maxHp+=gain;addLog('> Auto-scale: MaxHP +'+gain,'proj');}
+  if(e.bAtk>G.player.bAtk){const gain=Math.max(1,Math.round((e.bAtk-G.player.bAtk)*0.12));G.player.bAtk+=gain;addLog('> Auto-scale: ATK +'+gain,'proj');}
+  if(e.bDef>G.player.bDef){const gain=Math.max(1,Math.round((e.bDef-G.player.bDef)*0.10));G.player.bDef+=gain;addLog('> Auto-scale: DEF +'+gain,'proj');}
+  if(e.spd>G.player.spd+4){G.player.spd+=2;addLog('> Auto-scale: SPD +2','proj');}
+  if(e.maxHp>G.player.maxHp*1.5){const gain=Math.round((e.maxHp-G.player.maxHp)*0.07);G.player.maxHp+=gain;addLog('> Auto-scale: MaxHP +'+gain,'proj');}
 }
 
 async function playerMove(name){
@@ -1248,16 +1378,16 @@ async function playerMove(name){
   }else{
     await execMove('player','ai',name,mgMult);
     if(G.ai.hp<=0){G.ai.hp=0;renderFighter('ai');
-      tickStatusEndOfRoundFull('player');tickStatusEndOfRoundFull('ai');
+      tickStatusEndOfRound('player');tickStatusEndOfRound('ai');
       renderAll();await delay(300);endBattle('player');return;
     }
-    setMsg(G.ai.name+' is computing...',false);await delay(400+G.wave*15);
+    setMsg(G.ai.name+' is computing...',false);await delay(400+G.wave*12);
     if(G.ai.status&&G.ai.status.stun>0){G.ai.status.stun=0;addLog('> '+G.ai.name+': STUNNED — skip','debuff');setMsg(G.ai.name+' is stunned!');await delay(700);}
     else await execMove('ai','player',aiPick(),1.0);
   }
 
   addLog('--- end of round ---','sys');
-  tickStatusEndOfRoundFull('player');tickStatusEndOfRoundFull('ai');
+  tickStatusEndOfRound('player');tickStatusEndOfRound('ai');
   if(G.deathmarkActive){G.deathmarkTurns--;if(G.deathmarkTurns<=0){G.deathmarkActive=false;addLog('> Deathmark expired','debuff');}}
   renderAll();
 
@@ -1278,13 +1408,7 @@ function useItem(type){
   else if(type==='boost'){G.player.status.stimTurns=3;setMsg('Stim! ATK+40% 3 turns.');addLog('> Item: Stim -> ATK x1.4 3t','proj');renderFighter('player');}
   else if(type==='shield'){G.player.defMult=2;G.player.status.shieldTurns=2;setMsg('Shield Cell! DEF doubled 2 turns.');addLog('> Item: Shield -> DEF x2 2t','proj');renderFighter('player');}
   else if(type==='flash'){G.ai.status.stun=1;setMsg('Flash Grenade! '+G.ai.name+' stunned!');addLog('> Item: Flash -> STUN','proj');renderFighter('ai');}
-  else if(type==='clens'){
-    G.nextMoveAccBonus=20;
-    G.nextMoveEffectGuarantee=true;
-    setMsg('Critical Lens! Next move +20% ACC AND guaranteed effect!');
-    addLog('> Item: Lens -> next +20% ACC + guaranteed status effect','proj');
-    renderFighter('player');
-  }
+  else if(type==='clens'){G.nextMoveAccBonus=20;G.nextMoveEffectGuarantee=true;setMsg('Critical Lens! Next move +20% ACC AND guaranteed effect!');addLog('> Item: Lens -> +20% ACC + guaranteed status','proj');renderFighter('player');}
   renderItems();
 }
 
@@ -1309,11 +1433,27 @@ function cancelMoveReplace(){
 }
 function promptMoveReplace(newMove){return new Promise(resolve=>{showMoveReplace(newMove,(idx)=>{resolve(idx);},()=>{resolve(-1);});});}
 
+// ── Synergy-aware upgrade pool: boosts odds for pairing upgrades ─────────────
+function getPlayerMoveFxSet(){
+  return new Set(G.player.moves.map(m=>m.fx).filter(Boolean));
+}
+const SYNERGY_PAIRS={
+  'u_pyroclast':['burn','bleed','supernova'],
+  'u_storm_protocol':['multihit','triplehit'],
+  'u_cryo_predator':['chill','executeblow'],
+  'u_drain_mastery':['drain','leech'],
+  'u_chain_momentum':['chain'],
+  'u_sniper_protocol':['highcrit'],
+  'u_death_spiral':['deathmark'],
+  'u_regen_overdrive':['regen','ironwall'],
+  'u_gamble_synergy':['gamble'],
+};
+
 const ALL_UPGRADES=[
-  // ── COMMON ──
   {id:'u_atk1',name:'Targeting Module',desc:'ATK permanently +3',rarity:'common',apply:G=>{G.player.bAtk+=3},check:()=>true},
   {id:'u_def1',name:'Armor Plating',desc:'DEF permanently +3',rarity:'common',apply:G=>{G.player.bDef+=3},check:()=>true},
-  {id:'u_spd1',name:'Speed Boosters',desc:'SPD +2',rarity:'common',apply:G=>{G.player.spd+=2},check:()=>true},
+  {id:'u_spd1',name:'Speed Boosters',desc:'SPD +3',rarity:'common',apply:G=>{G.player.spd+=3},check:()=>true},
+  {id:'u_spd2',name:'Velocity Injector',desc:'SPD +4',rarity:'rare',apply:G=>{G.player.spd+=4},check:()=>true},
   {id:'u_crit1',name:'Precision Core',desc:'Crit chance +8%',rarity:'common',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+8},check:()=>true},
   {id:'u_evade1',name:'Evasion Matrix',desc:'Dodge chance +7%',rarity:'common',apply:G=>{G.player.evadeBonus=(G.player.evadeBonus||0)+7},check:()=>true},
   {id:'u_hp1',name:'Reinforced Frame',desc:'Max HP +35, heal 20',rarity:'common',apply:G=>{G.player.maxHp+=35;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp)},check:()=>true},
@@ -1325,96 +1465,90 @@ const ALL_UPGRADES=[
   {id:'u_shields',name:'Shield Cells x2',desc:'Gain 2 Shield Cells',rarity:'common',apply:G=>{G.items.shield=(G.items.shield||0)+2},check:()=>true},
   {id:'u_spd_def',name:'Reactive Plating',desc:'SPD +1, DEF +2',rarity:'common',apply:G=>{G.player.spd+=1;G.player.bDef+=2;},check:()=>true},
   {id:'u_atk_hp',name:'Combat Frame',desc:'ATK +2, Max HP +20',rarity:'common',apply:G=>{G.player.bAtk+=2;G.player.maxHp+=20;G.player.hp=Math.min(G.player.hp+20,G.player.maxHp);},check:()=>true},
-  {id:'u_evade_spd',name:'Ghost Steps',desc:'Evade +5%, SPD +1',rarity:'common',apply:G=>{G.player.evadeBonus=(G.player.evadeBonus||0)+5;G.player.spd+=1;},check:()=>true},
+  {id:'u_evade_spd',name:'Ghost Steps',desc:'Evade +5%, SPD +2',rarity:'common',apply:G=>{G.player.evadeBonus=(G.player.evadeBonus||0)+5;G.player.spd+=2;},check:()=>true},
   {id:'u_fullpp',name:'PP Restore',desc:'All moves fully restored',rarity:'common',apply:G=>{G.player.moves.forEach(m=>{m.pp=m.maxPp;});},check:G=>G.player.moves.some(m=>m.pp<m.maxPp)},
-  // ── RARE ──
   {id:'u_atk2',name:'Overclock Module',desc:'ATK permanently +6',rarity:'rare',apply:G=>{G.player.bAtk+=6},check:()=>true},
   {id:'u_def2',name:'Reactive Shielding',desc:'DEF +5, reflect 20% damage taken',rarity:'rare',apply:G=>{G.player.bDef+=5;G.player.reflect20=true},check:()=>true},
   {id:'u_vamp',name:'Vampiric Rounds',desc:'Attacks restore 15% dmg as HP',rarity:'rare',apply:G=>{G.player.vamp=true;G.player.vampBonus=Math.max(G.player.vampBonus||0,0.15)},check:G=>!G.player.vamp},
   {id:'u_doublepp',name:'Overclocked Reserves',desc:'All move PP doubled',rarity:'rare',apply:G=>{G.player.moves.forEach(m=>{m.maxPp*=2;m.pp=m.maxPp})},check:()=>true},
   {id:'u_crit2',name:'Lethal Config',desc:'Crit +15%, crit mult 2.0x',rarity:'rare',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+15;G.player.critMult=2.0},check:()=>true},
-  // ── REWORKED: Berserker Protocol — <30% HP: ATK doubles + 0 PP cost + vamp 20% ──
   {id:'u_berserker',name:'Berserker Protocol',desc:'Below 30% HP: ATK doubles, all moves free PP, lifesteal 20%',rarity:'rare',apply:G=>{G.player.berserk=true;},check:G=>!G.player.berserk},
-  {id:'u_counteratk',name:'Counter-Strike',desc:'When hit 20+ dmg, retaliate 8. Pairs with Overwatch Reflex.',rarity:'rare',apply:G=>{G.player.counter=true},check:G=>!G.player.counter},
+  {id:'u_counteratk',name:'Counter-Strike',desc:'When hit 20+ dmg, retaliate 8',rarity:'rare',apply:G=>{G.player.counter=true},check:G=>!G.player.counter},
   {id:'u_burnimmune',name:'Heat Sink',desc:'Immune to Burn',rarity:'rare',apply:G=>{G.player.burnImmune=true},check:G=>!G.player.burnImmune},
   {id:'u_stunimmune',name:'Iron Will',desc:'Immune to Stun',rarity:'rare',apply:G=>{G.player.stunImmune=true},check:G=>!G.player.stunImmune},
   {id:'u_poisonimmune',name:'Antitoxin Glands',desc:'Immune to Poison & Leech',rarity:'rare',apply:G=>{G.player.poisonImmune=true},check:G=>!G.player.poisonImmune},
-  // ── REWORKED: Executioner — <25% HP auto-crits AND +60% dmg ──
-  {id:'u_executioner',name:'Executioner',desc:'Attacks on <25% HP enemy: +60% dmg AND auto-crit. Cryo Predator extends threshold to 40% on Chilled foes.',rarity:'rare',apply:G=>{G.player.execute=true},check:G=>!G.player.execute},
+  {id:'u_executioner',name:'Executioner',desc:'Attacks on <25% HP enemy: +60% dmg AND auto-crit',rarity:'rare',apply:G=>{G.player.execute=true},check:G=>!G.player.execute},
   {id:'u_laststand',name:'Last Stand',desc:'Below 20% HP: 0 PP cost',rarity:'rare',apply:G=>{G.player.lastStand=true},check:G=>!G.player.lastStand},
-  {id:'u_chain_boost',name:'Chain Reactor',desc:'Chain Attack gains +8 ATK per use (doubled from base). Pairs with Chain Momentum.',rarity:'rare',apply:G=>{G.chainBoosted=true;},check:G=>G.player.moves.some(m=>m.fx==='chain')&&!G.chainBoosted},
-  {id:'u_dot_master',name:'DoT Master',desc:'All DoT effects deal +30% per tick. Pairs with Death Spiral.',rarity:'rare',apply:G=>{G.dotMasterUpg=true;},check:G=>!G.dotMasterUpg&&G.player.moves.some(m=>['burn','poison','bleed','leech'].includes(m.fx))},
-  {id:'u_pierce_upgrade',name:'Armor Annihilator',desc:'Pierce moves reduce enemy DEF 12% per hit. Pairs with Void Mastery.',rarity:'rare',apply:G=>{G.pierceDegrade=true;},check:G=>G.player.moves.some(m=>m.fx==='pierce')&&!G.pierceDegrade},
-  {id:'u_speedkill',name:'Speedkill Bonus',desc:'Acting first: +15% damage',rarity:'rare',apply:G=>{G.speedkillUpg=true;},check:G=>!G.speedkillUpg&&G.player.spd>=12},
-  {id:'u_gamble_synergy',name:'Jackpot Synergy',desc:"Gambler's Edge outcomes amplified: Jackpot 3x, Drain 75% heal, Double becomes Triple, Shield lasts 3t, Bust refunds 1 PP",rarity:'rare',apply:G=>{G.jackpotSynergy=true;},check:G=>G.player.moves.some(m=>m.fx==='gamble')&&!G.jackpotSynergy},
-
-  // ── NEW SYNERGY UPGRADES ──
-  {id:'u_pyroclast',name:'Pyroclast Protocol',desc:'SYNERGY [Burn+Bleed]: When Burn ticks it refreshes Bleed (and vice versa). Applying one DoT while the other is active extends both.',rarity:'rare',apply:G=>{G.pyroClastUpg=true;},check:G=>!G.pyroClastUpg&&G.player.moves.some(m=>m.fx==='burn'||m.fx==='bleed'||m.fx==='supernova')},
-  {id:'u_storm_protocol',name:'Storm Protocol',desc:'SYNERGY [Multi-Hit+Stun]: Each hit of multi-hit moves (Barrage, Volley) has 20% chance to stun.',rarity:'rare',apply:G=>{G.stormProtocolUpg=true;},check:G=>!G.stormProtocolUpg&&G.player.moves.some(m=>m.fx==='multihit'||m.fx==='triplehit')},
-  {id:'u_cryo_predator',name:'Cryo Predator',desc:'SYNERGY [Chill+Execute]: Finishing Blow execute threshold rises from 30% to 40% HP when enemy is Chilled.',rarity:'rare',apply:G=>{G.cryoPredatorUpg=true;},check:G=>!G.cryoPredatorUpg&&G.player.moves.some(m=>m.fx==='chill')&&G.player.moves.some(m=>m.fx==='executeblow')},
-  {id:'u_drain_mastery',name:'Drain Mastery',desc:'SYNERGY [Drain+Vamp]: When you have Vampiric Rounds, drain moves heal 75% of damage instead of 50%.',rarity:'rare',apply:G=>{G.drainMasteryUpg=true;},check:G=>!G.drainMasteryUpg&&G.player.vamp&&G.player.moves.some(m=>m.fx==='drain'||m.fx==='leech')},
-  {id:'u_overwatch_reflex',name:'Overwatch Reflex',desc:'SYNERGY [Counter+Overwatch]: Counter-Strike and Overwatch counter-hits each have 25% chance to stun the attacker.',rarity:'rare',apply:G=>{G.overwatchReflexUpg=true;},check:G=>!G.overwatchReflexUpg&&(G.player.counter||G.player.moves.some(m=>m.fx==='overwatch'))},
-  {id:'u_chain_momentum',name:'Chain Momentum',desc:'SYNERGY [Chain+Momentum]: Each Momentum stack adds +3 flat ATK to Chain Attack. Chain Attack also resets Momentum to 1 on use (not 0).',rarity:'rare',apply:G=>{G.chainMomentumUpg=true;},check:G=>!G.chainMomentumUpg&&G.player.moves.some(m=>m.fx==='chain')&&G.traits.find(t=>t.id==='t_momentum')},
-  {id:'u_sniper_protocol',name:'Sniper Protocol',desc:'SYNERGY [Sniper+Crit]: Sniper Shot crits now bypass DEF entirely (pierce calculation on crit).',rarity:'rare',apply:G=>{G.sniperProtocolUpg=true;},check:G=>!G.sniperProtocolUpg&&G.player.moves.some(m=>m.id==='snipe')&&G.player.critBonus>=10},
-  {id:'u_death_spiral',name:'Death Spiral',desc:'SYNERGY [Deathmark+DoT]: All DoT damage (Burn, Bleed, Poison) is doubled while Deathmark is active.',rarity:'rare',apply:G=>{G.deathSpiralUpg=true;},check:G=>!G.deathSpiralUpg&&G.player.moves.some(m=>m.fx==='deathmark')},
-  {id:'u_regen_overdrive',name:'Regen Overdrive',desc:'SYNERGY [Regen+Iron Wall]: While Iron Wall (DEF x2) is active, Regenerate heals 14% max HP per tick instead of 7%.',rarity:'rare',apply:G=>{G.regenOverdriveUpg=true;},check:G=>!G.regenOverdriveUpg&&G.player.moves.some(m=>m.fx==='regen')&&G.player.moves.some(m=>m.fx==='ironwall')},
-
-  // ── EPIC ──
+  {id:'u_chain_boost',name:'Chain Reactor',desc:'Chain Attack gains +8 ATK per use (doubled)',rarity:'rare',apply:G=>{G.chainBoosted=true;},check:G=>G.player.moves.some(m=>m.fx==='chain')&&!G.chainBoosted},
+  {id:'u_dot_master',name:'DoT Master',desc:'All DoT effects deal +30% per tick',rarity:'rare',apply:G=>{G.dotMasterUpg=true;},check:G=>!G.dotMasterUpg&&G.player.moves.some(m=>['burn','poison','bleed','leech'].includes(m.fx))},
+  {id:'u_pierce_upgrade',name:'Armor Annihilator',desc:'Pierce moves reduce enemy DEF 12% per hit',rarity:'rare',apply:G=>{G.pierceDegrade=true;},check:G=>G.player.moves.some(m=>m.fx==='pierce')&&!G.pierceDegrade},
+  {id:'u_speedkill',name:'Speedkill Bonus',desc:'Acting first: +15% damage',rarity:'rare',apply:G=>{G.speedkillUpg=true;},check:G=>!G.speedkillUpg&&G.player.spd>=11},
+  {id:'u_gamble_synergy',name:'Jackpot Synergy',desc:"Gambler's Edge: Jackpot 3x, Drain 75% heal, Double→Triple, Shield 3t, Counter 80%, Bust refunds PP",rarity:'rare',apply:G=>{G.jackpotSynergy=true;},check:G=>G.player.moves.some(m=>m.fx==='gamble')&&!G.jackpotSynergy},
+  {id:'u_pyroclast',name:'Pyroclast Protocol',desc:'SYNERGY: Burn+Bleed cross-refresh each other when both active',rarity:'rare',apply:G=>{G.pyroClastUpg=true;},check:G=>!G.pyroClastUpg&&G.player.moves.some(m=>['burn','bleed','supernova'].includes(m.fx))},
+  {id:'u_storm_protocol',name:'Storm Protocol',desc:'SYNERGY: Multi-hit moves have 20% stun chance per hit',rarity:'rare',apply:G=>{G.stormProtocolUpg=true;},check:G=>!G.stormProtocolUpg&&G.player.moves.some(m=>m.fx==='multihit'||m.fx==='triplehit')},
+  {id:'u_cryo_predator',name:'Cryo Predator',desc:'SYNERGY: Finishing Blow execute threshold 40% when enemy is Chilled',rarity:'rare',apply:G=>{G.cryoPredatorUpg=true;},check:G=>!G.cryoPredatorUpg&&G.player.moves.some(m=>m.fx==='chill')&&G.player.moves.some(m=>m.fx==='executeblow')},
+  {id:'u_drain_mastery',name:'Drain Mastery',desc:'SYNERGY: With Vamp, drain moves heal 75% of damage',rarity:'rare',apply:G=>{G.drainMasteryUpg=true;},check:G=>!G.drainMasteryUpg&&G.player.vamp&&G.player.moves.some(m=>m.fx==='drain'||m.fx==='leech')},
+  {id:'u_overwatch_reflex',name:'Overwatch Reflex',desc:'SYNERGY: Counter/Overwatch hits have 25% stun chance',rarity:'rare',apply:G=>{G.overwatchReflexUpg=true;},check:G=>!G.overwatchReflexUpg&&(G.player.counter||G.player.moves.some(m=>m.fx==='overwatch'))},
+  {id:'u_chain_momentum',name:'Chain Momentum',desc:'SYNERGY: Momentum boosts Chain ATK, Chain resets momentum to 1',rarity:'rare',apply:G=>{G.chainMomentumUpg=true;},check:G=>!G.chainMomentumUpg&&G.player.moves.some(m=>m.fx==='chain')&&G.traits.find(t=>t.id==='t_momentum')},
+  {id:'u_sniper_protocol',name:'Sniper Protocol',desc:'SYNERGY: Sniper Shot crits bypass DEF entirely',rarity:'rare',apply:G=>{G.sniperProtocolUpg=true;},check:G=>!G.sniperProtocolUpg&&G.player.moves.some(m=>m.id==='snipe')&&G.player.critBonus>=8},
+  {id:'u_death_spiral',name:'Death Spiral',desc:'SYNERGY: All DoT doubled while Deathmark active',rarity:'rare',apply:G=>{G.deathSpiralUpg=true;},check:G=>!G.deathSpiralUpg&&G.player.moves.some(m=>m.fx==='deathmark')},
+  {id:'u_regen_overdrive',name:'Regen Overdrive',desc:'SYNERGY: Regen heals 14% max HP per tick while Iron Wall active',rarity:'rare',apply:G=>{G.regenOverdriveUpg=true;},check:G=>!G.regenOverdriveUpg&&G.player.moves.some(m=>m.fx==='regen')&&G.player.moves.some(m=>m.fx==='ironwall')},
   {id:'u_allstats',name:'Hyper Calibration',desc:'ATK, DEF, SPD all +5',rarity:'epic',apply:G=>{G.player.bAtk+=5;G.player.bDef+=5;G.player.spd+=5},check:()=>true},
   {id:'u_phoenix',name:'Phoenix Protocol',desc:'Survive fatal blow at 1 HP (once)',rarity:'epic',apply:G=>{G.player.phoenix=true},check:G=>!G.player.phoenix},
-  // ── REWORKED: Omni-Matrix — every 3rd hit triggers synchronized auto-counter ──
-  {id:'u_omni',name:'Omni-Matrix',desc:'REWORKED: Crit+12%, Evade+12%, Vamp, Reflect10%. PLUS: every 3rd hit deals a free auto-counter (Synchronized).',rarity:'epic',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+12;G.player.evadeBonus=(G.player.evadeBonus||0)+12;G.player.vamp=true;G.player.reflect10=true;G.omniSyncUpg=true;G.omniHitCount=0;},check:()=>true},
+  {id:'u_omni',name:'Omni-Matrix',desc:'Crit+12%, Evade+12%, Vamp, Reflect10%, every 3rd hit auto-counter',rarity:'epic',apply:G=>{G.player.critBonus=(G.player.critBonus||0)+12;G.player.evadeBonus=(G.player.evadeBonus||0)+12;G.player.vamp=true;G.player.reflect10=true;G.omniSyncUpg=true;G.omniHitCount=0;},check:()=>true},
   {id:'u_warmaster',name:'War Master',desc:'ATK+8, DEF+4, unlock Annihilate',rarity:'epic',apply:async G=>{G.player.bAtk+=8;G.player.bDef+=4;const m=BASE_PMOVES.find(x=>x.id==='nuke');if(m&&!G.player.moves.find(x=>x.id===m.id))await tryLearnMove({...m,pp:m.maxPp});},check:()=>true,isAsync:true},
-  // ── REWORKED: Overload Core — each stack now gives +3 ATK AND +2% Crit (handled in getAtk/getCrit) ──
-  {id:'u_overload',name:'Overload Core',desc:'REWORKED: Each hit stacks +3 ATK AND +2% Crit permanently (up to 5 stacks). Stacks reset when hit.',rarity:'epic',apply:G=>{G.player.overload=true;G.player.overloadStacks=0;},check:G=>!G.player.overload},
+  {id:'u_overload',name:'Overload Core',desc:'Each hit stacks +3 ATK AND +2% Crit permanently (up to 5). Stacks reset when hit.',rarity:'epic',apply:G=>{G.player.overload=true;G.player.overloadStacks=0;},check:G=>!G.player.overload},
   {id:'u_glacialcore',name:'Glacial Core',desc:'Unlock Glacial Nova (T3) + Chill immune',rarity:'epic',apply:async G=>{G.player.chillImmune=true;const m=BASE_PMOVES.find(x=>x.id==='glacial');if(m&&!G.player.moves.find(x=>x.id===m.id))await tryLearnMove({...m,pp:m.maxPp});},check:G=>!G.player.moves.find(x=>x.id==='glacial'),isAsync:true},
-  {id:'u_spd_crit',name:'Blur of Steel',desc:'Each 5 SPD = +3% Crit',rarity:'epic',apply:G=>{G.blurSteelUpg=true;const bonus=Math.floor(G.player.spd/5)*3;G.player.critBonus=(G.player.critBonus||0)+bonus;},check:G=>G.player.spd>=15&&!G.blurSteelUpg},
+  {id:'u_spd_crit',name:'Blur of Steel',desc:'Each 5 SPD = +3% Crit',rarity:'epic',apply:G=>{G.blurSteelUpg=true;const bonus=Math.floor(G.player.spd/5)*3;G.player.critBonus=(G.player.critBonus||0)+bonus;},check:G=>G.player.spd>=14&&!G.blurSteelUpg},
   {id:'u_supernova_unlock',name:'Stellar Core',desc:'Unlock Supernova (T3) + all DoT+1t',rarity:'epic',apply:async G=>{G.dotMasterUpg=true;const m=BASE_PMOVES.find(x=>x.id==='supernova');if(m&&!G.player.moves.find(x=>x.id===m.id))await tryLearnMove({...m,pp:m.maxPp});},check:G=>!G.player.moves.find(x=>x.id==='supernova'),isAsync:true},
 ];
 
 const TRAITS=[
-  {id:'t_tough',name:'Unyielding',desc:'+5 DEF passively',buildSynergy:'tank'},
-  {id:'t_swift',name:'Overclocked',desc:'Always win SPD ties',buildSynergy:'speed'},
-  {id:'t_tactician',name:'Tactician',desc:'Earn +50% score per battle',buildSynergy:'any'},
-  {id:'t_ironwill',name:'Iron Will',desc:'Cannot be stunned',buildSynergy:'any'},
-  {id:'t_medic',name:'Field Medic',desc:'Medpacks restore +15 extra HP',buildSynergy:'sustain'},
-  {id:'t_momentum',name:'Momentum',desc:'Consecutive hits +5% damage each. Pairs with Chain Momentum upgrade.',buildSynergy:'aggro'},
-  {id:'t_glasscannon',name:'Glass Cannon',desc:'ATK +8, DEF -4 permanently',buildSynergy:'aggro'},
-  {id:'t_scavenger',name:'Scavenger',desc:'+25g every wave clear',buildSynergy:'economy'},
-  {id:'t_tank',name:'Iron Fortress',desc:'Incoming damage -10% (passive)',buildSynergy:'tank'},
-  {id:'t_vampire_tr',name:'Bloodthirst',desc:'All attacks passively drain 8% HP. Pairs with Drain Mastery upgrade.',buildSynergy:'sustain'},
-  {id:'t_critburn',name:'Critical OS',desc:'Critical hits apply 2-turn Burn on enemy. Pairs with Pyroclast Protocol.',buildSynergy:'dot'},
-  {id:'t_crit_spec',name:'Sniper Mind',desc:'Crits deal 2.2x instead of 1.5x. Pairs with Sniper Protocol.',buildSynergy:'crit'},
-  {id:'t_hp_regen',name:'Regenerative Frame',desc:'Passively regen 2% max HP each end of round. Pairs with Regen Overdrive.',buildSynergy:'sustain'},
-  {id:'t_gold_finder',name:'Gold Seeker',desc:'Gold rewards increased 20%',buildSynergy:'economy'},
-  {id:'t_lucky',name:'Lady Luck',desc:"Gambler's Edge JACKPOT chance +15%. Bonus +20g each wave.",buildSynergy:'gamble'},
-  // NEW TRAITS
-  {id:'t_voltaic',name:'Voltaic Body',desc:'Stun moves deal +20% damage. Storm Protocol stun procs deal 5 bonus dmg each.',buildSynergy:'stun'},
-  {id:'t_ferrousframe',name:'Ferrous Frame',desc:'Iron Wall lasts 3 turns instead of 2. Regen Overdrive bonus window extended.',buildSynergy:'tank'},
-  {id:'t_bleedlust',name:'Bleed Lust',desc:'Whenever bleed ticks on enemy, heal 3 HP. Pairs with Pyroclast.',buildSynergy:'dot'},
-  {id:'t_voidcrawler',name:'Void Crawler',desc:'Pierce moves also reduce enemy ATK by 5% per hit (max 30%). Pairs with Void Mastery.',buildSynergy:'pierce'},
-  {id:'t_chainmaster',name:'Chain Master',desc:'Chain Attack PP cost is halved (rounded up). Pairs with Chain Momentum.',buildSynergy:'chain'},
+  {id:'t_tough',name:'Unyielding',desc:'+5 DEF passively'},
+  {id:'t_swift',name:'Overclocked',desc:'Always win SPD ties'},
+  {id:'t_tactician',name:'Tactician',desc:'Earn +50% score per battle'},
+  {id:'t_ironwill',name:'Iron Will',desc:'Cannot be stunned'},
+  {id:'t_medic',name:'Field Medic',desc:'Medpacks restore +15 extra HP'},
+  {id:'t_momentum',name:'Momentum',desc:'Consecutive hits +5% damage each'},
+  {id:'t_glasscannon',name:'Glass Cannon',desc:'ATK +8, DEF -4 permanently'},
+  {id:'t_scavenger',name:'Scavenger',desc:'+25g every wave clear'},
+  {id:'t_tank',name:'Iron Fortress',desc:'Incoming damage -10% (passive)'},
+  {id:'t_vampire_tr',name:'Bloodthirst',desc:'All attacks drain 8% HP'},
+  {id:'t_critburn',name:'Critical OS',desc:'Critical hits apply 2-turn Burn on enemy'},
+  {id:'t_crit_spec',name:'Sniper Mind',desc:'Crits deal 2.2x instead of 1.5x'},
+  {id:'t_hp_regen',name:'Regenerative Frame',desc:'Passively regen 2% max HP each end of round'},
+  {id:'t_gold_finder',name:'Gold Seeker',desc:'Gold rewards increased 20%'},
+  {id:'t_lucky',name:'Lady Luck',desc:"Gambler's Edge JACKPOT +15%. Bonus +20g each wave."},
+  {id:'t_bleedlust',name:'Bleed Lust',desc:'Whenever bleed ticks on enemy, heal 3 HP'},
+  {id:'t_ferrousframe',name:'Ferrous Frame',desc:'Iron Wall lasts 3 turns instead of 2'},
 ];
 
-// ── Trait passives that interact with moves during tickStatus ──
-function applyTraitMidRound_BleedLust(dmg){
-  // Called when bleed ticks
-  if(G.traits.find(t=>t.id==='t_bleedlust')){
-    G.player.hp=Math.min(G.player.maxHp,G.player.hp+3);
-    addLog('> BLEED LUST: +3 HP','hit');
-  }
-}
-
 function rollUpgrades(){
+  const fxSet=getPlayerMoveFxSet();
+  // Build weighted list with synergy upgrades weighted higher
   const avail=ALL_UPGRADES.filter(u=>{
-    if(G.appliedUpgrades.includes(u.id)&&!['u_medpacks','u_ethers','u_stims','u_ppup','u_shields','u_fullpp'].includes(u.id))return false;
+    if(G.appliedUpgrades.includes(u.id)&&!['u_medpacks','u_ethers','u_stims','u_ppup','u_shields','u_fullpp','u_spd1'].includes(u.id))return false;
     return u.check(G);
   });
   const shuffled=[...avail].sort(()=>Math.random()-0.5);
+  // SPD upgrades weighted 2x when player SPD < enemy SPD+3
+  const spdNeed=G.player.spd<G.ai.spd+3;
   const picks=[];
   const epics=shuffled.filter(u=>u.rarity==='epic');
-  const rares=shuffled.filter(u=>u.rarity==='rare');
-  const commons=shuffled.filter(u=>u.rarity==='common');
+  const rares=shuffled.filter(u=>u.rarity==='rare').sort((a,b)=>{
+    const aHasSynergy=SYNERGY_PAIRS[a.id]&&SYNERGY_PAIRS[a.id].some(fx=>fxSet.has(fx));
+    const bHasSynergy=SYNERGY_PAIRS[b.id]&&SYNERGY_PAIRS[b.id].some(fx=>fxSet.has(fx));
+    const aSPD=a.id==='u_spd2'||a.id==='u_speedkill';
+    const bSPD=b.id==='u_spd2'||b.id==='u_speedkill';
+    let aW=(aHasSynergy?0.7:1.0)+(spdNeed&&aSPD?-0.4:0);
+    let bW=(bHasSynergy?0.7:1.0)+(spdNeed&&bSPD?-0.4:0);
+    return aW-bW; // lower = earlier = picked first after sort by rand, so reverse
+  }).reverse();
+  const commons=shuffled.filter(u=>u.rarity==='common').sort((a,b)=>{
+    const aSPD=a.id==='u_spd1'||a.id==='u_evade_spd'||a.id==='u_spd_def';
+    const bSPD=b.id==='u_spd1'||b.id==='u_evade_spd'||b.id==='u_spd_def';
+    return (spdNeed&&bSPD?-1:0)-(spdNeed&&aSPD?-1:0);
+  });
   if(G.wave>=3&&epics.length&&Math.random()<0.45)picks.push(epics[0]);
   if(picks.length<3&&rares.length&&(G.wave>=2||Math.random()<0.5)){const r=rares.find(u=>!picks.includes(u));if(r)picks.push(r);}
   while(picks.length<3&&commons.length){const u=commons.find(u=>!picks.includes(u));if(!u)break;picks.push(u);commons.splice(commons.indexOf(u),1);}
@@ -1454,10 +1588,11 @@ function showStatUpgrade(onDone){
   G.player.maxHp+=15;G.player.hp=Math.min(G.player.hp+15,G.player.maxHp);
   G.player.bAtk+=1;G.player.bDef+=1;
   addLog('> Level Up: MaxHP+15 ATK+1 DEF+1','proj');
+  const spdIsGood=G.player.spd<G.ai.spd+2;
   const stats=[
     {label:'ATK +3',apply:()=>{G.player.bAtk+=3;addLog('> Stat: ATK +3','proj');}},
     {label:'DEF +3',apply:()=>{G.player.bDef+=3;addLog('> Stat: DEF +3','proj');}},
-    {label:'SPD +2',apply:()=>{G.player.spd+=2;addLog('> Stat: SPD +2','proj');}},
+    {label:'SPD +3'+(spdIsGood?' ⚡':''),apply:()=>{G.player.spd+=3;addLog('> Stat: SPD +3','proj');}},
     {label:'HP +30',apply:()=>{G.player.maxHp+=30;G.player.hp=Math.min(G.player.hp+30,G.player.maxHp);addLog('> Stat: HP +30','proj');}},
     {label:'CRIT +6%',apply:()=>{G.player.critBonus=(G.player.critBonus||0)+6;addLog('> Stat: CRIT +6%','proj');}},
     {label:'EVADE +6%',apply:()=>{G.player.evadeBonus=(G.player.evadeBonus||0)+6;addLog('> Stat: EVADE +6%','proj');}},
@@ -1473,124 +1608,10 @@ function showStatUpgrade(onDone){
 function applyTraitPassives(){
   if(G.traits.find(t=>t.id==='t_hp_regen')){
     const h=Math.round(G.player.maxHp*0.02);
-    if(G.player.hp<G.player.maxHp){G.player.hp=Math.min(G.player.maxHp,G.player.hp+h);addLog('> Passive Regen: +'+h+'HP','hit');}
+    if(G.player.hp<G.player.maxHp){G.player.hp=Math.min(G.player.maxHp,G.player.hp+h);addLog('> Passive Regen (start of wave): +'+h+'HP','hit');}
   }
   if(G.traits.find(t=>t.id==='t_crit_spec'))G.player.critMult=2.2;
   if(G.traits.find(t=>t.id==='t_lucky')){G.gold+=20;addLog('> Lady Luck: +20g','proj');}
-  // Ferrous Frame: Iron Wall lasts 3t
-  if(G.traits.find(t=>t.id==='t_ferrousframe')&&G.player.status.shieldTurns>0)G.player.status.shieldTurns=Math.max(G.player.status.shieldTurns,3);
-}
-
-// Patch tickStatus to call BleedLust
-const _origTickStatus=tickStatusEndOfRound;
-// We monkey-patch bleed lust into the tick by inlining it in the bleed section above was done already
-// Actually handled by adding the applyTraitMidRound_BleedLust call inside tickStatusEndOfRound inline:
-// (Bleed lust is called in a patched version below)
-function tickStatusEndOfRoundFull(who){
-  const c=G[who];if(!c)return;
-  if(c.pendingStatus){
-    if(c.pendingStatus.burn>0){c.status.burn=Math.max(c.status.burn||0,c.pendingStatus.burn);c.pendingStatus.burn=0;}
-    if(c.pendingStatus.poison>0){c.status.poison=Math.max(c.status.poison||0,c.pendingStatus.poison);c.pendingStatus.poison=0;}
-    if(c.pendingStatus.bleed>0){c.status.bleed=Math.max(c.status.bleed||0,c.pendingStatus.bleed);c.pendingStatus.bleed=0;}
-    if(c.pendingStatus.regen>0){c.status.regen=Math.max(c.status.regen||0,c.pendingStatus.regen);c.pendingStatus.regen=0;}
-    if(c.pendingStatus.chill>0){c.status.chill=Math.max(c.status.chill||0,c.pendingStatus.chill);c.pendingStatus.chill=0;if(c.spd>3)c.spd=Math.max(3,c.spd-2);addLog('> '+c.name+': CHILL! SPD-2','debuff');}
-  }
-  if(!c.status)return;
-  const deathSpiralMult=G.deathSpiralUpg&&G.deathmarkActive&&c===G.ai?2.0:1.0;
-  const dotMult=(G.dotMasterUpg?1.3:1.0)*deathSpiralMult;
-  if(c.status.burn>0){
-    const d=Math.round(c.maxHp*0.055*dotMult);c.hp=Math.max(0,c.hp-d);c.status.burn--;
-    addLog('> '+c.name+': BURN — '+d+' dmg ('+c.status.burn+'t left)'+(deathSpiralMult>1?' [SPIRAL]':''),'debuff');
-    if(G.pyroClastUpg&&c===G.ai&&c.status.bleed>0){c.status.bleed=Math.max(c.status.bleed,1);addLog('> PYROCLAST: Burn tick keeps Bleed alive','debuff');}
-    renderFighter(who);
-  }
-  if(c.status.poison>0){const d=Math.round(c.maxHp*0.04*dotMult);c.hp=Math.max(0,c.hp-d);c.status.poison--;addLog('> '+c.name+': PSNT — '+d+' dmg ('+c.status.poison+'t left)'+(deathSpiralMult>1?' [SPIRAL]':''),'debuff');renderFighter(who);}
-  if(c.status.bleed>0){
-    const d=Math.round(c.maxHp*0.05*dotMult);c.hp=Math.max(0,c.hp-d);c.status.bleed--;
-    addLog('> '+c.name+': BLEED — '+d+' dmg ('+c.status.bleed+'t left)'+(deathSpiralMult>1?' [SPIRAL]':''),'debuff');
-    // Bleed Lust: heal 3 when enemy bleeds
-    if(c===G.ai)applyTraitMidRound_BleedLust(d);
-    if(G.pyroClastUpg&&c===G.ai&&c.status.burn>0){c.status.burn=Math.max(c.status.burn,1);addLog('> PYROCLAST: Bleed tick keeps Burn alive','debuff');}
-    renderFighter(who);
-  }
-  if(c.status.chill>0){c.status.chill--;if(c.status.chill===0){c.spd+=2;addLog('> '+c.name+': CHILL faded — SPD restored','debuff');}renderFighter(who);}
-  if(c.status.regen>0){
-    const regenPct=G.regenOverdriveUpg&&c===G.player&&c.defMult>1?0.14:0.07;
-    const h=Math.round(c.maxHp*regenPct);c.hp=Math.min(c.maxHp,c.hp+h);c.status.regen--;
-    showPop(who+'-fill',h,true);
-    addLog('> '+c.name+': REGEN +'+h+'HP ('+c.status.regen+'t left)'+(G.regenOverdriveUpg&&c===G.player&&c.defMult>1?' [OVERDRIVE]':''),'hit');
-    renderFighter(who);
-  }
-  if(c.status.wraithTurns>0){c.status.wraithTurns--;if(c.status.wraithTurns===0){addLog('> '+c.name+': Wraith Form faded','debuff');renderFighter(who);}}
-  if(c.defDebuf>0&&c.defDebufTurns>0){c.defDebufTurns--;if(c.defDebufTurns===0){c.defDebuf=0;addLog('> '+c.name+': DEF debuff faded','debuff');renderFighter(who);}}
-  if(c.atkBufTurns>0){c.atkBufTurns--;if(c.atkBufTurns===0){c.atkBuf=Math.max(0,c.atkBuf-2);addLog('> '+c.name+': ATK boost faded','debuff');}}
-  if(c.defBufTurns>0){c.defBufTurns--;if(c.defBufTurns===0){c.defBuf=Math.max(0,c.defBuf-2);addLog('> '+c.name+': DEF boost faded','debuff');}}
-  if(c.status.stimTurns>0)c.status.stimTurns--;
-  if(c.status.shieldTurns>0){
-    c.status.shieldTurns--;
-    // Ferrous Frame: Iron Wall lasts 3t
-    if(c.status.shieldTurns===0){c.defMult=1;addLog('> '+c.name+': Iron Wall faded','debuff');renderFighter(who);}
-  }
-  // Voidcrawler trait: ATK reduction from pierce hits
-  if(who==='ai'&&c.voidCrawlerDebuf>0){/* handled in execMove */}
-}
-
-// Override the main tickStatus with the full version
-// (replaces the two-pass version with the single full version above)
-// This is intentional: tickStatusEndOfRoundFull IS the authoritative version.
-// The playerMove function should call tickStatusEndOfRoundFull.
-// We'll alias it:
-// Note: The playerMove and nextWave still reference tickStatusEndOfRound — we alias below.
-// Since JS is mutable, we reassign:
-// eslint-disable-next-line no-global-assign
-// Can't reassign function declarations; instead patch via global variable.
-// Solution: call tickStatusEndOfRoundFull from playerMove.
-// The playerMove function above already calls tickStatusEndOfRound which references the old one.
-// We fix by ONLY using tickStatusEndOfRoundFull everywhere. The old one is superseded.
-// All calls in playerMove and nextWave will use the Full version.
-
-// ── Patch: void crawler ATK debuff on pierce ──
-// Applied during execMove pierce section by checking trait
-function applyVoidCrawlerPierceATKDebuf(def){
-  if(!G.traits.find(t=>t.id==='t_voidcrawler'))return;
-  if(!def.voidCrawlerDebuf)def.voidCrawlerDebuf=0;
-  const reduction=Math.min(0.30,def.voidCrawlerDebuf+0.05);
-  def.voidCrawlerDebuf=reduction;
-  // bAtk reduced 5% (up to 30% total)
-  def.bAtk=Math.max(1,Math.round(def.bAtk*0.95));
-  addLog('> VOID CRAWLER: enemy ATK -5% (total -'+Math.round(reduction*100)+'%)','debuff');
-}
-
-// ── Iron Wall trait: Ferrous Frame gives +1 extra turn ──
-// Patched into execMove ironwall handler:
-function applyIronWallWithTrait(att,attKey){
-  const baseTurns=G.traits.find(t=>t.id==='t_ferrousframe')?3:2;
-  att.defMult=2;att.status.shieldTurns=baseTurns;
-  setMsg(att.name+': Iron Wall! DEF doubled '+(baseTurns)+'t!'+(baseTurns===3?' [FERROUS FRAME]':''));
-  addLog('> '+att.name+': DEF x2 for '+baseTurns+'t'+(baseTurns===3?' [FERROUS]':''),'sys');
-  renderFighter(attKey);
-}
-
-// ── Chain Master trait: halve PP cost ──
-function maybeApplyChainMasterPP(mv,att){
-  if(!G.traits.find(t=>t.id==='t_chainmaster')||mv.fx!=='chain')return;
-  // Refund 50% of PP spent (i.e. give back 1 PP every other use)
-  if(!G._chainMasterToggle)G._chainMasterToggle=false;
-  G._chainMasterToggle=!G._chainMasterToggle;
-  if(G._chainMasterToggle){mv.pp=Math.min(mv.pp+1,mv.maxPp);addLog('> CHAIN MASTER: PP refunded','sys');}
-}
-
-// ── Voltaic Body trait: stun moves +20% dmg; Storm stun procs deal 5 bonus ──
-// Voltaic is passive and handled in calcDmg; we'll patch calcDmg for stun moves:
-// (Added below as a small patch to calcDmg result)
-const _origCalcDmg=calcDmg;
-// We already have calcDmg defined; let's augment the stun branch inside execMove
-// rather than re-patching calcDmg (to avoid recursion issues).
-// Voltaic Body stun bonus (+20% dmg for stun-move hits) is added in the stun branch of execMove via:
-function voltaicDmgBonus(mv,attKey){
-  if(!G.traits.find(t=>t.id==='t_voltaic')||attKey!=='player')return 1.0;
-  if(mv.fx==='stun')return 1.20;
-  return 1.0;
 }
 
 function endBattle(winner){
@@ -1608,14 +1629,20 @@ function endBattle(winner){
     document.getElementById('result-detail').textContent='Wave '+G.wave+' cleared!\n\nBase reward:  '+base+'\nSpeed bonus:  +'+spd+'\nHP bonus:     +'+hp+'\nTotal:        '+total+'\nGold earned:  +'+goldEarned+'g\n\nCumulative:   '+G.score.toLocaleString()+'\nGold:         '+G.gold+'g\nLevel:        '+G.level;
     addLog('=== VICTORY Wave '+G.wave+' — +'+total+' (+'+goldEarned+'g) ===','sys');
     autoScalePlayer();
+    const isPrestige=(G.wave%12===0);
     const restockChance=Math.min(0.98,0.65+G.wave*0.03);
-    if(Math.random()<restockChance||!G.shop||G.shop.length===0){
+    if(!isPrestige&&(Math.random()<restockChance||!G.shop||G.shop.length===0)){
       G.shop=rollShop();const shopMovesExtra=rollShopMoves();G.shop.push(...shopMovesExtra);
       addLog('> Shop restocked for Wave '+(G.wave+1),'proj');
     }
+    if(isPrestige){G.prestigeShop=rollPrestigeShop();G.showPrestige=true;addLog('> PRESTIGE SHOP — cycle complete! Choose a power-up with a downside.','crit');}
     const upgrades=rollUpgrades();
     const upDiv=document.getElementById('upgrade-pick');const chDiv=document.getElementById('upgrade-choices');
     upDiv.style.display='block';chDiv.innerHTML='';
+    if(isPrestige){
+      const pBanner=document.createElement('div');pBanner.style.cssText='font-size:11px;color:#7c3aed;font-weight:600;margin-bottom:4px';
+      pBanner.textContent='★ Prestige wave! Prestige shop now available on the right panel.';chDiv.appendChild(pBanner);
+    }
     const newMove=offerMoveUnlock();
     if(newMove){
       upgrades.unshift({id:'move_'+newMove.id,name:'Learn: '+newMove.name,desc:'Add '+newMove.name+' ('+newMove.desc+')\n'+(newMove.tipExtra||''),rarity:'rare',apply:async g=>{await tryLearnMove({...newMove,pp:newMove.maxPp});},check:()=>true,isAsync:true});
@@ -1624,7 +1651,8 @@ function endBattle(winner){
     const checkBothChosen=()=>{if(upgradeChosen)document.getElementById('next-btn').style.display='inline-block';};
     upgrades.slice(0,3).forEach(u=>{
       const card=document.createElement('div');card.className='upgrade-card';card.style.width='175px';
-      card.innerHTML='<div class="utitle">'+u.name+'</div><div class="urarity '+(u.rarity==='epic'?'rarity-epic':u.rarity==='rare'?'rarity-rare':'rarity-common')+'">['+u.rarity+']</div><div class="udesc">'+u.desc+'</div><button style="width:100%;margin-top:3px">Select</button>';
+      const synergyNote=SYNERGY_PAIRS[u.id]&&SYNERGY_PAIRS[u.id].some(fx=>getPlayerMoveFxSet().has(fx))?' ✓':'';
+      card.innerHTML='<div class="utitle">'+u.name+synergyNote+'</div><div class="urarity '+(u.rarity==='epic'?'rarity-epic':u.rarity==='rare'?'rarity-rare':'rarity-common')+'">['+u.rarity+']</div><div class="udesc">'+u.desc+'</div><button style="width:100%;margin-top:3px">Select</button>';
       card.querySelector('button').addEventListener('click',async()=>{
         G.appliedUpgrades.push(u.id);
         if(u.isAsync)await u.apply(G);else u.apply(G);
@@ -1667,11 +1695,10 @@ function nextWave(){
     status:{burn:0,stun:0,regen:0,reflect:0,stimTurns:0,chill:0,poison:0,bleed:0,shieldTurns:0,tauntTurns:0,wraithTurns:0},
     pendingStatus:{burn:0,poison:0,bleed:0,regen:0,chill:0},
     phoenixUsed:false,overloadStacks:0,defMult:1,atkBuf:0,defBuf:0,atkBufTurns:0,defBufTurns:0,
-    defDebuf:0,defDebufTurns:0,overwatchReady:false};
+    defDebuf:0,defDebufTurns:0,overwatchReady:false,gamblerCounterReady:false,gamblerCounterPct:0};
   G.wave++;G.turn=1;G.waveScore=0;G.phase='player';G.busy=false;G.chainCount=0;G.momentumCount=0;
   G.nextMoveAccBonus=0;G.nextMoveEffectGuarantee=false;G.deathmarkActive=false;G.deathmarkTurns=0;
-  G.omniHitCount=0;G._chainMasterToggle=false;
-  if(G.traits.find(t=>t.id==='t_berserker_tr')){p.bAtk+=2;p.bDef=Math.max(1,p.bDef-1);}
+  G.omniHitCount=0;G.showPrestige=false;
   p.hp=p.maxHp;G.player=p;G.ai=buildEnemy(G.wave-1);
   applyTraitPassives();
   document.getElementById('resultbox').classList.remove('show');
@@ -1683,14 +1710,5 @@ function nextWave(){
   addLog('=== WAVE '+G.wave+' START — '+G.ai.name+' ['+G.ai.theme+'] ===','sys');
   updateEnemyMovesPanel();updateAIStrategyBox();
 }
-
-// ── Final: replace tickStatusEndOfRound calls with Full version ──
-// playerMove and nextWave call tickStatusEndOfRound — we override to call Full version.
-// Done by redefining tickStatusEndOfRound to forward to Full:
-// (JavaScript hoisting means the function declaration is already defined above.
-//  We reassign via var to make tickStatusEndOfRoundFull the canonical version.)
-// All references to tickStatusEndOfRound in playerMove() will use the original.
-// Since playerMove is defined after both, and calls by name, we need the window-level alias:
-// Aliased at bottom of file after all definitions.
 
 initGame();
